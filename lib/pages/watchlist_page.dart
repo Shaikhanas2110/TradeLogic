@@ -6,7 +6,136 @@ class WatchlistPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: Text('Hello'),),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "Watchlist",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: watchlistData.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final item = watchlistData[index];
+          final isPositive = item.change >= 0;
+
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// Symbol + Exchange
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.symbol,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.exchange,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
+
+                /// Price + Change
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      item.price,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${isPositive ? '+' : ''}${item.change.toStringAsFixed(2)}%",
+                      style: TextStyle(
+                        color: isPositive
+                            ? Colors.greenAccent
+                            : Colors.redAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+
+      /// Floating Add Button
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF3F51B5),
+        onPressed: () {},
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 }
+
+class WatchlistItem {
+  final String symbol;
+  final String exchange;
+  final String price;
+  final double change;
+
+  WatchlistItem({
+    required this.symbol,
+    required this.exchange,
+    required this.price,
+    required this.change,
+  });
+}
+
+final List<WatchlistItem> watchlistData = [
+  WatchlistItem(
+    symbol: "NIFTY 50",
+    exchange: "NSE",
+    price: "22,453.10",
+    change: -0.21,
+  ),
+  WatchlistItem(
+    symbol: "BANKNIFTY",
+    exchange: "NSE",
+    price: "48,210.40",
+    change: 1.14,
+  ),
+  WatchlistItem(
+    symbol: "RELIANCE",
+    exchange: "NSE",
+    price: "2,856.30",
+    change: 0.78,
+  ),
+  WatchlistItem(
+    symbol: "TCS",
+    exchange: "NSE",
+    price: "3,912.50",
+    change: -1.02,
+  ),
+];
