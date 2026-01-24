@@ -211,10 +211,16 @@ class StockDetailPage extends StatelessWidget {
                 onPressed: () {
                   final qty = int.tryParse(qtyController.text) ?? 0;
                   if (qty > 0) {
-                    Provider.of<PortfolioProvider>(
-                      context,
-                      listen: false,
-                    ).sellStock(symbol: item.symbol, quantity: qty);
+                    try {
+                      Provider.of<PortfolioProvider>(
+                        context,
+                        listen: false,
+                      ).sellStock(symbol: item.symbol, quantity: qty);
+                    } catch (e) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
+                    }
 
                     Navigator.pop(context); // close sheet
                     Navigator.pop(context); // back
