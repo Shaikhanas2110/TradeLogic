@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/dashboard_page.dart';
-import 'package:tradelogic/pages/home_page.dart';
 import 'package:tradelogic/pages/register_page.dart';
 
 class LoginPage extends StatefulWidget {
