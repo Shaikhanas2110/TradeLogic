@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tradelogic/pages/dashboard_page.dart';
+import 'package:tradelogic/pages/home_page.dart';
 import 'package:tradelogic/pages/register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -169,7 +171,11 @@ class _LoginPageState extends State<LoginPage> {
 
                           ElevatedButton(
                             onPressed: () {
-                              if (_formKey.currentState!.validate()) {}
+                              if (_formKey.currentState!.validate()) {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                                  return DashboardPage();
+                                },));
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.all(20.0),
