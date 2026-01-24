@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:provider/provider.dart';
+import 'package:tradelogic/providers/portfolio_provider.dart';
 import 'package:tradelogic/widget_tree.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => PortfolioProvider())],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -50,6 +57,3 @@ class _MyHomePageState extends State<MyHomePage> {
     return WidgetTree();
   }
 }
-
-
-

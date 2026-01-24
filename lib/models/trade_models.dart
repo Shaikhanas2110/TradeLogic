@@ -1,20 +1,18 @@
-enum TradeSource { manual, algo }
-
-class PortfolioItem {
+class Holding {
   final String symbol;
   final String exchange;
   int quantity;
   double avgPrice;
-  double ltp;
-  final TradeSource source;
+  double ltp; // live price
 
-  PortfolioItem({
+  Holding({
     required this.symbol,
     required this.exchange,
     required this.quantity,
     required this.avgPrice,
-    required this.source,
-  }) : ltp = avgPrice;
+    required this.ltp,
+  });
 
   double get pnl => (ltp - avgPrice) * quantity;
+
 }
