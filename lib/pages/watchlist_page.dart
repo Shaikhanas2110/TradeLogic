@@ -7,18 +7,38 @@ class WatchlistPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF000000),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text(
-          "Watchlist",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            /// Profile Avatar
+            CircleAvatar(
+              radius: 22,
+              backgroundImage: AssetImage('images/logo.png'), // replace image
+            ),
+
+            const SizedBox(width: 12),
+
+            /// Greeting + Name
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Text(
+                  "Watchlist",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
       body: ListView.separated(
@@ -100,13 +120,6 @@ class WatchlistPage extends StatelessWidget {
             ),
           );
         },
-      ),
-
-      /// Floating Add Button
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF3F51B5),
-        onPressed: () {},
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

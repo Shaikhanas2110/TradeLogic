@@ -18,9 +18,23 @@ class StockDetailPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: Text(item.symbol, style: const TextStyle(color: Colors.white)),
+        automaticallyImplyLeading: false,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            /// Profile Avatar
+            CircleAvatar(
+              radius: 22,
+              backgroundImage: AssetImage('images/logo.png'), // replace image
+            ),
+
+            const SizedBox(width: 12),
+
+            Text(item.symbol, style: TextStyle(color: Colors.white)),
+          ],
+        ),
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -82,7 +96,7 @@ class StockDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () => _showBuySheet(context, price),
-                child: const Text("BUY"),
+                child: const Text("BUY", style: TextStyle(color: Colors.white)),
               ),
             ),
             const SizedBox(width: 12),
@@ -93,7 +107,10 @@ class StockDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () => _showSellSheet(context),
-                child: const Text("SELL"),
+                child: const Text(
+                  "SELL",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],

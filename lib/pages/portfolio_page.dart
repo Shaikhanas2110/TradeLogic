@@ -9,11 +9,39 @@ class PortfolioPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF000000),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text("Portfolio", style: TextStyle(color: Colors.white)),
+        automaticallyImplyLeading: false,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            /// Profile Avatar
+            CircleAvatar(
+              radius: 22,
+              backgroundImage: AssetImage('images/logo.png'), // replace image
+            ),
+
+            const SizedBox(width: 12),
+
+            /// Greeting + Name
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Text(
+                  "Portfolio",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
 
       body: Consumer<PortfolioProvider>(
