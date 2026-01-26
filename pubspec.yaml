@@ -38,6 +38,7 @@ dependencies:
   flutter_displaymode: ^0.6.0
   flutter_launcher_icons: "^0.14.4"
   provider: ^6.0.5
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

@@ -50,21 +50,20 @@ class PortfolioProvider extends ChangeNotifier {
   void sellStock({required String symbol, required int quantity}) {
     final index = _holdings.indexWhere((e) => e.symbol == symbol);
 
-    // ❌ Stock not owned
     if (index == -1) {
+      SnackBar(content: Text('SELL FAILED: Stock not in portfolio'));
       debugPrint("SELL FAILED: Stock not in portfolio");
       return;
     }
 
     final item = _holdings[index];
 
-    // ❌ Trying to sell more than owned
     if (quantity > item.quantity) {
+      SnackBar(content: Text('SELL FAILED: Not enough quantity'));
       debugPrint("SELL FAILED: Not enough quantity");
       return;
     }
 
-    // ✅ Valid sell
     item.quantity -= quantity;
 
     if (item.quantity == 0) {

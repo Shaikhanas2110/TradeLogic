@@ -14,25 +14,14 @@ class StockDetailPage extends StatelessWidget {
     final double price = double.parse(item.price.replaceAll(',', ''));
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF000000),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        iconTheme: IconThemeData(color: Colors.white),
         elevation: 0,
-        automaticallyImplyLeading: false,
         titleSpacing: 16,
-        title: Row(
-          children: [
-            /// Profile Avatar
-            CircleAvatar(
-              radius: 22,
-              backgroundImage: AssetImage('images/logo.png'), // replace image
-            ),
-
-            const SizedBox(width: 12),
-
-            Text(item.symbol, style: TextStyle(color: Colors.white)),
-          ],
-        ),
+        automaticallyImplyLeading: true,
+        title: Text(item.symbol, style: TextStyle(color: Colors.white)),
       ),
 
       body: Padding(
@@ -178,7 +167,10 @@ class StockDetailPage extends StatelessWidget {
                     Navigator.pop(context); // back to watchlist
                   }
                 },
-                child: const Text("CONFIRM BUY"),
+                child: const Text(
+                  "CONFIRM BUY",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -243,7 +235,10 @@ class StockDetailPage extends StatelessWidget {
                     Navigator.pop(context); // back
                   }
                 },
-                child: const Text("CONFIRM SELL"),
+                child: const Text(
+                  "CONFIRM SELL",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
