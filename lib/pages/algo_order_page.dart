@@ -51,7 +51,7 @@ class _AlgoOrderPageState extends State<AlgoOrderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(widget.symbol),
         backgroundColor: Colors.transparent,
@@ -62,7 +62,7 @@ class _AlgoOrderPageState extends State<AlgoOrderPage> {
           children: [
             Text(
               ltp == null ? "Loading..." : "₹${ltp!.toStringAsFixed(2)}",
-              style: const TextStyle(color: Colors.white, fontSize: 32),
+              style: const TextStyle(color: Colors.black, fontSize: 32),
             ),
 
             const SizedBox(height: 20),
@@ -70,7 +70,7 @@ class _AlgoOrderPageState extends State<AlgoOrderPage> {
             TextField(
               controller: qtyController,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               decoration: const InputDecoration(
                 hintText: "Quantity",
                 hintStyle: TextStyle(color: Colors.grey),

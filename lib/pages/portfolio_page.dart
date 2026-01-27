@@ -9,7 +9,7 @@ class PortfolioPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -33,7 +33,7 @@ class PortfolioPage extends StatelessWidget {
                 Text(
                   "Portfolio",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -66,7 +66,7 @@ class PortfolioPage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -78,7 +78,7 @@ class PortfolioPage extends StatelessWidget {
                         Text(
                           item.symbol,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.black,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -105,7 +105,7 @@ class PortfolioPage extends StatelessWidget {
                         Text(
                           "₹${(item.ltp * item.quantity).toStringAsFixed(2)}",
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.black,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

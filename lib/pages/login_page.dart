@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
           child: Center(
@@ -53,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
                     Text(
                       "Welcome Back",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 30,
                       ),
@@ -72,7 +72,7 @@ class _LoginPageState extends State<LoginPage> {
                           fieldTitle("Email"),
 
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             keyboardType: TextInputType.emailAddress,
                             onSaved: (value) {
                               email = value!;
@@ -115,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           /// PASSWORD
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             obscureText: _obscurePassword == true,
                             onSaved: (value) {
                               password = value!;
@@ -179,7 +179,7 @@ class _LoginPageState extends State<LoginPage> {
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.all(20.0),
                               backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.white,
+                              foregroundColor: Colors.black,
                               minimumSize: const Size(double.infinity, 40),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(5),
@@ -187,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             child: const Text(
                               'Login',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(color: Colors.black),
                             ),
                           ),
 
@@ -209,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                                   TextSpan(
                                     text: "Don't have an account? ",
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 14,
                                     ),
                                   ),

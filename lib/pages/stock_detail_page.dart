@@ -14,14 +14,14 @@ class StockDetailPage extends StatelessWidget {
     final double price = double.parse(item.price.replaceAll(',', ''));
 
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.black),
         elevation: 0,
         titleSpacing: 16,
         automaticallyImplyLeading: true,
-        title: Text(item.symbol, style: TextStyle(color: Colors.white)),
+        title: Text(item.symbol, style: TextStyle(color: Colors.black)),
       ),
 
       body: Padding(
@@ -36,7 +36,7 @@ class StockDetailPage extends StatelessWidget {
             Text(
               "₹${item.price}",
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
               ),
@@ -58,7 +58,7 @@ class StockDetailPage extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Center(
@@ -85,7 +85,7 @@ class StockDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () => _showBuySheet(context, price),
-                child: const Text("BUY", style: TextStyle(color: Colors.white)),
+                child: const Text("BUY", style: TextStyle(color: Colors.black)),
               ),
             ),
             const SizedBox(width: 12),
@@ -98,7 +98,7 @@ class StockDetailPage extends StatelessWidget {
                 onPressed: () => _showSellSheet(context),
                 child: const Text(
                   "SELL",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ),
@@ -113,7 +113,7 @@ class StockDetailPage extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -125,7 +125,7 @@ class StockDetailPage extends StatelessWidget {
             children: [
               const Text(
                 "Buy Quantity",
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.black, fontSize: 18),
               ),
 
               const SizedBox(height: 12),
@@ -133,7 +133,7 @@ class StockDetailPage extends StatelessWidget {
               TextField(
                 controller: qtyController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black),
                 decoration: const InputDecoration(
                   hintText: "Enter quantity",
                   hintStyle: TextStyle(color: Colors.grey),
@@ -169,7 +169,7 @@ class StockDetailPage extends StatelessWidget {
                 },
                 child: const Text(
                   "CONFIRM BUY",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ],
@@ -184,7 +184,7 @@ class StockDetailPage extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -196,14 +196,14 @@ class StockDetailPage extends StatelessWidget {
             children: [
               const Text(
                 "Sell Quantity",
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.black, fontSize: 18),
               ),
               const SizedBox(height: 12),
 
               TextField(
                 controller: qtyController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black),
                 decoration: const InputDecoration(
                   hintText: "Enter quantity",
                   hintStyle: TextStyle(color: Colors.grey),
@@ -237,7 +237,7 @@ class StockDetailPage extends StatelessWidget {
                 },
                 child: const Text(
                   "CONFIRM SELL",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ],
