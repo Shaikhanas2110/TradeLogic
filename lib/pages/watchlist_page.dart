@@ -8,7 +8,7 @@ class WatchlistPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -19,7 +19,7 @@ class WatchlistPage extends StatelessWidget {
             /// Profile Avatar
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage('images/logo.png'), // replace image
+              backgroundImage: AssetImage('images/logo1.png'), // replace image
             ),
 
             const SizedBox(width: 12),
@@ -32,7 +32,7 @@ class WatchlistPage extends StatelessWidget {
                 Text(
                   "Watchlist",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -66,9 +66,9 @@ class WatchlistPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF121212),
+                color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                border: Border.all(color: Colors.black.withOpacity(0.05)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -80,7 +80,7 @@ class WatchlistPage extends StatelessWidget {
                       Text(
                         item.symbol,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -103,7 +103,7 @@ class WatchlistPage extends StatelessWidget {
                       Text(
                         item.price,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

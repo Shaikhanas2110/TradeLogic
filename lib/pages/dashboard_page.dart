@@ -222,7 +222,7 @@ class _DashboardPageState extends State<DashboardPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF3F51B5),
         unselectedItemColor: Colors.grey,

@@ -6,7 +6,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -40,7 +40,7 @@ class HomePage extends StatelessWidget {
                       Text(
                         "Alex Rivers",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -56,11 +56,11 @@ class HomePage extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1F1F1F),
+                      color: const Color(0xFFF3F4F6),
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.notifications_none, color: Colors.white),
+                      icon: const Icon(Icons.notifications_none, color: Colors.black),
                       onPressed: () {},
                     ),
                   ),
@@ -82,7 +82,7 @@ class HomePage extends StatelessWidget {
                           const Text(
                             "Market Overview",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.black,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -143,7 +143,7 @@ Widget summaryCard() {
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF1f1f1f), Colors.indigo],
+        colors: [Color(0xFFF3F4F6), Colors.indigo],
       ),
       borderRadius: BorderRadius.circular(10),
     ),
@@ -159,7 +159,7 @@ Widget summaryCard() {
           '\$25000',
           style: TextStyle(
             fontSize: 30,
-            color: Colors.white,
+            color: Colors.black,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -203,7 +203,7 @@ Widget summaryCard() {
                 Text(
                   '\$1200',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -236,9 +236,9 @@ class MarketCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +272,7 @@ class MarketCard extends StatelessWidget {
           Text(
             price,
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
