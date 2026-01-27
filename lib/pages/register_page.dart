@@ -26,7 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF000000),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
           child: Center(
@@ -56,7 +56,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     Text(
                       "Start Your Journey",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 30,
                       ),
@@ -75,7 +75,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         children: [
                           fieldTitle("Full Name"),
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             keyboardType: TextInputType.name,
                             onSaved: (value) {
                               email = value!;
@@ -105,7 +105,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           const SizedBox(height: 15),
                           fieldTitle("Email"),
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             keyboardType: TextInputType.emailAddress,
                             onSaved: (value) {
                               email = value!;
@@ -148,7 +148,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           /// PASSWORD
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             obscureText: _obscurePassword == true,
                             onSaved: (value) {
                               password = value!;
@@ -204,7 +204,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           /// PASSWORD
                           TextFormField(
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.black),
                             obscureText: _obscurePassword == true,
                             onSaved: (value) {
                               password = value!;
@@ -336,7 +336,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               padding: const EdgeInsets.all(20.0),
                               backgroundColor: _acceptedTerms
                                   ? Colors.indigo
-                                  : const Color(0xFF1F1F1F),
+                                  : const Color(0xFFF3F4F6),
                               foregroundColor: Colors.white,
                               minimumSize: const Size(double.infinity, 40),
                               shape: RoundedRectangleBorder(
@@ -345,7 +345,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             child: const Text(
                               'Create Account',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(color: Colors.black),
                             ),
                           ),
 
@@ -367,7 +367,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   TextSpan(
                                     text: "Already have an account? ",
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -404,7 +404,7 @@ Widget fieldTitle(String title) {
       child: Text(
         title,
         style: const TextStyle(
-          color: Colors.white,
+          color: Colors.black,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),

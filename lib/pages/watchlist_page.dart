@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/algo_order_page.dart';
+import 'package:tradelogic/pages/stock_detail_page.dart';
 // import 'package:tradelogic/pages/stock_detail_page.dart';
 
 class WatchlistPage extends StatelessWidget {
@@ -56,10 +57,11 @@ class WatchlistPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AlgoOrderPage(
-                    symbol: item.symbol,
-                    instrumentKey: "NSE_EQ|INE002A01018", // from CSV
-                  ),
+                  builder: (_) => StockDetailPage(item: item) 
+                  // builder: (_) => AlgoOrderPage(
+                  //   symbol: item.symbol,
+                  //   instrumentKey: "NSE_EQ|INE002A01018", // from CSV
+                  // ),
                 ),
               );
             },

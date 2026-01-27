@@ -14,7 +14,7 @@ class OnboardingPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF000000), const Color(0xFF000000)],
+            colors: [Colors.white, Colors.white],
           ),
         ),
         child: Center(
@@ -31,7 +31,7 @@ class OnboardingPage extends StatelessWidget {
                 "Automate Your Trading.",
                 style: TextStyle(
                   fontSize: 25,
-                  color: Colors.white,
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -59,7 +59,7 @@ class OnboardingPage extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.all(20.0),
                     backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     minimumSize: Size(double.infinity, 40),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(5),
@@ -84,8 +84,8 @@ class OnboardingPage extends StatelessWidget {
                   },
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.all(20.0),
-                    backgroundColor: Color(0xFF1F1F1F),
-                    foregroundColor: Colors.white,
+                    backgroundColor: Color(0xFFF3F4F6),
+                    foregroundColor: Colors.black,
                     minimumSize: Size(double.infinity, 40),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(5),
