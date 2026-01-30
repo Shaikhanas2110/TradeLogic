@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tradelogic/models/portfolio_item.dart';
+import 'package:tradelogic/providers/algo_provider.dart';
 import 'package:tradelogic/providers/portfolio_provider.dart';
 import 'watchlist_page.dart';
 
@@ -150,27 +151,19 @@ class StockDetailPage extends StatelessWidget {
                 onPressed: () {
                   final qty = int.tryParse(qtyController.text) ?? 0;
 
-                  if (qty > 0) {
-                    /// 🔥 THIS IS STEP 5 (CORE LINE)
-                    Provider.of<PortfolioProvider>(
-                      context,
-                      listen: false,
-                    ).buyStock(
-                      symbol: item.symbol,
-                      exchange: item.exchange,
-                      quantity: qty,
-                      price: price,
-                      source: TradeSource.manual,
-                    );
+                  if (qty <= 0) return;
 
-                    Navigator.pop(context); // close bottom sheet
-                    Navigator.pop(context); // back to watchlist
-                  }
+                  Provider.of<AlgoProvider>(context, listen: false).startAlgo(
+                    symbol: item.symbol, // ✅ item exists here
+                    side: "BUY",
+                    quantity: qty, // ✅ qty defined properly
+                    triggerPrice: price, // ✅ trigger price
+                  );
+
+                  Navigator.pop(context); // close bottom sheet
+                  Navigator.pop(context); // go back
                 },
-                child: const Text(
-                  "CONFIRM BUY",
-                  style: TextStyle(color: Colors.black),
-                ),
+                child: const Text("START BUY ALGO"),
               ),
             ],
           ),

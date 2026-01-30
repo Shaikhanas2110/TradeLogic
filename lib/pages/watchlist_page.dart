@@ -56,11 +56,10 @@ class WatchlistPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => StockDetailPage(item: item) 
-                  // builder: (_) => AlgoOrderPage(
-                  //   symbol: item.symbol,
-                  //   instrumentKey: "NSE_EQ|INE002A01018", // from CSV
-                  // ),
+                  builder: (_) => AlgoOrderPage(
+                    symbol: item.symbol,
+                    instrumentKey: "NSE_EQ|INE002A01018", // from CSV
+                  ),
                 ),
               );
             },
