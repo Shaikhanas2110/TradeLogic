@@ -1,70 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:tradelogic/models/portfolio_item.dart';
-import 'package:tradelogic/providers/algo_provider.dart';
-import 'package:tradelogic/providers/portfolio_provider.dart';
-import 'watchlist_page.dart';
+import '../services/api_service.dart';
+import 'strategy_page.dart';
 
 class StockDetailPage extends StatelessWidget {
-  final WatchlistItem item;
+  final String symbol;
+  final String exchange;
 
-  const StockDetailPage({super.key, required this.item});
+  const StockDetailPage({
+    super.key,
+    required this.symbol,
+    required this.exchange,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final double price = double.parse(item.price.replaceAll(',', ''));
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(color: Colors.black),
         elevation: 0,
-        titleSpacing: 16,
-        automaticallyImplyLeading: true,
-        title: Text(item.symbol, style: TextStyle(color: Colors.black)),
+        leading: const BackButton(color: Colors.white),
+        title: Text(symbol, style: const TextStyle(color: Colors.white)),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.exchange, style: const TextStyle(color: Colors.grey)),
+            Text(exchange, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 12),
 
-            const SizedBox(height: 8),
-
-            Text(
-              "₹${item.price}",
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+            /// LIVE PRICE FROM BACKEND
+            FutureBuilder<double>(
+              future: ApiService.getPrice(symbol),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Text(
+                    "Loading...",
+                    style: TextStyle(color: Colors.grey, fontSize: 28),
+                  );
+                }
+                return Text(
+                  "₹${snapshot.data!.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
 
-            Text(
-              "${item.change >= 0 ? '+' : ''}${item.change}% (1D)",
-              style: TextStyle(
-                color: item.change >= 0 ? Colors.greenAccent : Colors.redAccent,
-                fontSize: 16,
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            /// Chart placeholder
+            /// CHART PLACEHOLDER
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFF121212),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
                   child: Text(
-                    "Chart Placeholder",
+                    "Chart coming soon",
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -74,7 +72,7 @@ class StockDetailPage extends StatelessWidget {
         ),
       ),
 
-      /// BUY BAR
+      /// BUY / SELL ACTION BAR
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -85,158 +83,21 @@ class StockDetailPage extends StatelessWidget {
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: () => _showBuySheet(context, price),
-                child: const Text("BUY", style: TextStyle(color: Colors.black)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () => _showSellSheet(context),
-                child: const Text(
-                  "SELL",
-                  style: TextStyle(color: Colors.black),
-                ),
+                onPressed: () {
+                  /// GO TO STRATEGY PAGE
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StrategyPage(symbol: symbol),
+                    ),
+                  );
+                },
+                child: const Text("CREATE STRATEGY"),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  void _showBuySheet(BuildContext context, double price) {
-    final qtyController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Buy Quantity",
-                style: TextStyle(color: Colors.black, fontSize: 18),
-              ),
-
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: qtyController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.black),
-                decoration: const InputDecoration(
-                  hintText: "Enter quantity",
-                  hintStyle: TextStyle(color: Colors.grey),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  minimumSize: const Size(double.infinity, 45),
-                ),
-                onPressed: () {
-                  final qty = int.tryParse(qtyController.text) ?? 0;
-
-                  if (qty <= 0) return;
-
-                  Provider.of<AlgoProvider>(context, listen: false).startAlgo(
-                    symbol: item.symbol, // ✅ item exists here
-                    side: "BUY",
-                    quantity: qty, // ✅ qty defined properly
-                    triggerPrice: price, // ✅ trigger price
-                  );
-
-                  Navigator.pop(context); // close bottom sheet
-                  Navigator.pop(context); // go back
-                },
-                child: const Text("START BUY ALGO"),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showSellSheet(BuildContext context) {
-    final qtyController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Sell Quantity",
-                style: TextStyle(color: Colors.black, fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: qtyController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.black),
-                decoration: const InputDecoration(
-                  hintText: "Enter quantity",
-                  hintStyle: TextStyle(color: Colors.grey),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: const Size(double.infinity, 45),
-                ),
-                onPressed: () {
-                  final qty = int.tryParse(qtyController.text) ?? 0;
-                  if (qty > 0) {
-                    try {
-                      Provider.of<PortfolioProvider>(
-                        context,
-                        listen: false,
-                      ).sellStock(symbol: item.symbol, quantity: qty);
-                    } catch (e) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(e.toString())));
-                    }
-
-                    Navigator.pop(context); // close sheet
-                    Navigator.pop(context); // back
-                  }
-                },
-                child: const Text(
-                  "CONFIRM SELL",
-                  style: TextStyle(color: Colors.black),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

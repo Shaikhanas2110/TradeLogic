@@ -2,35 +2,39 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:4000";
-  // 👆 for Android emulator
+  static const String baseUrl = "http://127.0.0.1:4000";
 
-  static Future<double> getLTP(String instrumentKey) async {
-    final res = await http.get(
-      Uri.parse("$baseUrl/ltp?instrument=$instrumentKey"),
-    );
-    final data = jsonDecode(res.body);
-    return data["ltp"].toDouble();
+  static Future<List<dynamic>> getWatchlist() async {
+    final res = await http.get(Uri.parse("$baseUrl/watchlist"));
+    return jsonDecode(res.body);
   }
 
-  static Future<bool> placeOrder({
-    required String symbol,
-    required String side,
-    required int quantity,
-    required double price,
-  }) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/place-order"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "symbol": symbol,
-        "side": side,
-        "quantity": quantity,
-        "price": price,
-        "order_type": "MARKET",
-      }),
-    );
+  static Future<double> getPrice(String symbol) async {
+    final res = await http.get(Uri.parse("$baseUrl/price/$symbol"));
+    return res.statusCode == 200
+        ? jsonDecode(res.body)["price"].toDouble()
+        : 0.0;
+  }
 
-    return res.statusCode == 200;
+  static Future<void> startAlgo(Map<String, dynamic> rule) async {
+    await http.post(
+      Uri.parse("$baseUrl/start-algo"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(rule),
+    );
+  }
+
+  static Future<void> stopAlgo(String symbol) async {
+    await http.post(
+      Uri.parse("$baseUrl/stop-algo"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"symbol": symbol}),
+    );
+  }
+
+  static Future<List<dynamic>> getPortfolio() async {
+    final res = await http.get(Uri.parse("$baseUrl/portfolio"));
+    return jsonDecode(res.body);
   }
 }
+

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tradelogic/pages/algo_order_page.dart';
 import 'package:tradelogic/pages/stock_detail_page.dart';
+import 'package:tradelogic/services/api_service.dart';
 
 class WatchlistPage extends StatelessWidget {
   const WatchlistPage({super.key});
@@ -42,88 +42,38 @@ class WatchlistPage extends StatelessWidget {
           ],
         ),
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: watchlistData.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final item = watchlistData[index];
-          final isPositive = item.change >= 0;
+      body: FutureBuilder(
+        future: ApiService.getWatchlist(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          return InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AlgoOrderPage(
-                    symbol: item.symbol,
-                    instrumentKey: "NSE_EQ|INE002A01018", // from CSV
-                  ),
+          final stocks = snapshot.data as List;
+
+          return ListView.builder(
+            itemCount: stocks.length,
+            itemBuilder: (context, i) {
+              final stock = stocks[i];
+              return ListTile(
+                title: Text(
+                  stock["symbol"],
+                  style: TextStyle(color: Colors.white),
                 ),
+                subtitle: Text(
+                  "₹${stock["price"]}",
+                  style: TextStyle(color: Colors.grey),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StockDetailPage(symbol: stock["symbol"],exchange: stock["exchange"],),
+                    ),
+                  );
+                },
               );
             },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black.withOpacity(0.05)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  /// Symbol + Exchange
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.symbol,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.exchange,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  /// Price + Change
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        item.price,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${isPositive ? '+' : ''}${item.change.toStringAsFixed(2)}%",
-                        style: TextStyle(
-                          color: isPositive
-                              ? Colors.greenAccent
-                              : Colors.redAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           );
         },
       ),
