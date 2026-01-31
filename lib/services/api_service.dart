@@ -6,7 +6,11 @@ class ApiService {
 
   static Future<List<dynamic>> getWatchlist() async {
     final res = await http.get(Uri.parse("$baseUrl/watchlist"));
-    return jsonDecode(res.body);
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to load watchlist");
+    }
   }
 
   static Future<double> getPrice(String symbol) async {
@@ -37,4 +41,3 @@ class ApiService {
     return jsonDecode(res.body);
   }
 }
-

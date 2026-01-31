@@ -42,33 +42,59 @@ class WatchlistPage extends StatelessWidget {
           ],
         ),
       ),
-      body: FutureBuilder(
+      body: FutureBuilder<List<dynamic>>(
         future: ApiService.getWatchlist(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          // 1️⃣ LOADING
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final stocks = snapshot.data as List;
+          // 2️⃣ ERROR
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                "Error: ${snapshot.error}",
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+
+          // 3️⃣ EMPTY
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text(
+                "No stocks found",
+                style: TextStyle(color: Colors.grey),
+              ),
+            );
+          }
+
+          // 4️⃣ DATA OK
+          final stocks = snapshot.data!;
 
           return ListView.builder(
             itemCount: stocks.length,
             itemBuilder: (context, i) {
               final stock = stocks[i];
+
               return ListTile(
                 title: Text(
                   stock["symbol"],
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Text(
-                  "₹${stock["price"]}",
-                  style: TextStyle(color: Colors.grey),
+                  stock["exchange"], // ⚠️ NOT price (see next section)
+                  style: const TextStyle(color: Colors.grey),
                 ),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => StockDetailPage(symbol: stock["symbol"],exchange: stock["exchange"],),
+                      builder: (_) => StockDetailPage(
+                        symbol: stock["symbol"],
+                        exchange: stock["exchange"],
+                      ),
                     ),
                   );
                 },
