@@ -78,26 +78,44 @@ class WatchlistPage extends StatelessWidget {
             itemBuilder: (context, i) {
               final stock = stocks[i];
 
-              return ListTile(
-                title: Text(
-                  stock["symbol"],
-                  style: const TextStyle(color: Colors.black),
-                ),
-                subtitle: Text(
-                  stock["exchange"], // ⚠️ NOT price (see next section)
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => StockDetailPage(
-                        symbol: stock["symbol"],
-                        exchange: stock["exchange"],
+              return Column(
+                children: [
+                  SizedBox(height: 5),
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: ListTile(
+                      tileColor: Color(0xFFF3F4F6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          16,
+                        ), // Set all corners to a radius of 20
+                        side: const BorderSide(
+                          color: Color(0xFFF3F4F6),
+                          width: 1,
+                        ), // Optional: add a border
                       ),
+                      title: Text(
+                        stock["symbol"],
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                      subtitle: Text(
+                        stock["exchange"], // ⚠️ NOT price (see next section)
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StockDetailPage(
+                              symbol: stock["symbol"],
+                              exchange: stock["exchange"],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                ],
               );
             },
           );
