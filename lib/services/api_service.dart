@@ -22,7 +22,7 @@ class ApiService {
 
   static Future<void> startAlgo(Map<String, dynamic> rule) async {
     await http.post(
-      Uri.parse("$baseUrl/start-algo"),
+      Uri.parse("$baseUrl/start_algo"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(rule),
     );
@@ -30,7 +30,7 @@ class ApiService {
 
   static Future<void> stopAlgo(String symbol) async {
     await http.post(
-      Uri.parse("$baseUrl/stop-algo"),
+      Uri.parse("$baseUrl/stop_algo"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"symbol": symbol}),
     );

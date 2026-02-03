@@ -81,7 +81,7 @@ class WatchlistPage extends StatelessWidget {
               return ListTile(
                 title: Text(
                   stock["symbol"],
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.black),
                 ),
                 subtitle: Text(
                   stock["exchange"], // ⚠️ NOT price (see next section)
