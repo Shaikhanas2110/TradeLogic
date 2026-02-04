@@ -87,12 +87,7 @@ class StockDetailPage extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
                 onPressed: () {
-                  /// GO TO STRATEGY PAGE
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -100,8 +95,17 @@ class StockDetailPage extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text("CREATE STRATEGY",style: TextStyle(color: Colors.white),),
-              ),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.all(20.0),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.black,
+                    minimumSize: Size(double.infinity, 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  child: Text('Create Strategy', style: TextStyle(fontSize: 18,color: Colors.white)),
+                ),
             ),
           ],
         ),

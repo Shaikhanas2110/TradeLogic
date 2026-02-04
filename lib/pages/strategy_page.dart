@@ -16,7 +16,8 @@ class StrategyPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text("Create Strategy")),
+        title: Text("Create Strategy"),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -39,7 +40,16 @@ class StrategyPage extends StatelessWidget {
 
                 Navigator.pop(context);
               },
-              child: const Text("START ALGO"),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.all(20.0),
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.black,
+                minimumSize: Size(double.infinity, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              child: Text('Start Algo', style: TextStyle(fontSize: 18,color: Colors.white)),
             ),
           ],
         ),
@@ -56,6 +66,20 @@ class StrategyPage extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.grey),
+          errorStyle: TextStyle(color: Colors.redAccent),
+
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.indigo, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.redAccent),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.redAccent),
+          ),
         ),
       ),
     );
