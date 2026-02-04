@@ -3,6 +3,7 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:provider/provider.dart';
 import 'package:tradelogic/providers/portfolio_provider.dart';
 import 'package:tradelogic/widget_tree.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        textTheme: GoogleFonts.openSansTextTheme(),
       ),
       home: const MyHomePage(),
     );

@@ -15,18 +15,26 @@ class StockDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: Text(symbol, style: const TextStyle(color: Colors.white)),
+        leading: const BackButton(color: Colors.black),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                CircleAvatar(backgroundImage: AssetImage('images/logo1.png')),
+                SizedBox(width: 10,),
+                Text(symbol, style: const TextStyle(color: Colors.black,fontSize: 25)),
+              ],
+            ),
+            const SizedBox(height: 12),
+
             Text(exchange, style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 12),
 
@@ -43,7 +51,7 @@ class StockDetailPage extends StatelessWidget {
                 return Text(
                   "₹${snapshot.data!.toStringAsFixed(2)}",
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                   ),
@@ -57,7 +65,7 @@ class StockDetailPage extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
@@ -92,7 +100,7 @@ class StockDetailPage extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text("CREATE STRATEGY"),
+                child: const Text("CREATE STRATEGY",style: TextStyle(color: Colors.white),),
               ),
             ),
           ],

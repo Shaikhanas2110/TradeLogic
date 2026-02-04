@@ -13,8 +13,10 @@ class StrategyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(title: Text("Create Strategy")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Text("Create Strategy")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -50,7 +52,7 @@ class StrategyPage extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: c,
-        style: TextStyle(color: Colors.white),
+        style: TextStyle(color: Colors.black),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.grey),
