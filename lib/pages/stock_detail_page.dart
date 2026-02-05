@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'strategy_page.dart';
 
-class StockDetailPage extends StatelessWidget {
+class StockDetailPage extends StatefulWidget {
   final String symbol;
   final String exchange;
 
@@ -11,6 +13,25 @@ class StockDetailPage extends StatelessWidget {
     required this.symbol,
     required this.exchange,
   });
+
+  @override
+  State<StockDetailPage> createState() => _StockDetailPageState();
+}
+
+class _StockDetailPageState extends State<StockDetailPage> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,25 +50,26 @@ class StockDetailPage extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(backgroundImage: AssetImage('images/logo1.png')),
-                SizedBox(width: 10,),
-                Text(symbol, style: const TextStyle(color: Colors.black,fontSize: 25)),
+                SizedBox(width: 10),
+                Text(
+                  widget.symbol,
+                  style: const TextStyle(color: Colors.black, fontSize: 25),
+                ),
               ],
             ),
             const SizedBox(height: 12),
 
-            Text(exchange, style: const TextStyle(color: Colors.grey)),
+            Text(widget.exchange, style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 12),
 
             /// LIVE PRICE FROM BACKEND
             FutureBuilder<double>(
-              future: ApiService.getPrice(symbol),
+              future: ApiService.getLTP(widget.symbol),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Text(
-                    "Loading...",
-                    style: TextStyle(color: Colors.grey, fontSize: 28),
-                  );
+                  return const CircularProgressIndicator();
                 }
+
                 return Text(
                   "₹${snapshot.data!.toStringAsFixed(2)}",
                   style: const TextStyle(
@@ -91,21 +113,24 @@ class StockDetailPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => StrategyPage(symbol: symbol),
+                      builder: (_) => StrategyPage(symbol: widget.symbol),
                     ),
                   );
                 },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.all(20.0),
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.black,
-                    minimumSize: Size(double.infinity, 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.all(20.0),
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.black,
+                  minimumSize: Size(double.infinity, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
                   ),
-                  child: Text('Create Strategy', style: TextStyle(fontSize: 18,color: Colors.white)),
                 ),
+                child: Text(
+                  'Create Strategy',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
             ),
           ],
         ),

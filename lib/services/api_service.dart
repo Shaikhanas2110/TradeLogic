@@ -40,4 +40,15 @@ class ApiService {
     final res = await http.get(Uri.parse("$baseUrl/portfolio"));
     return jsonDecode(res.body);
   }
+
+  static Future<double> getLTP(String symbol) async {
+    final res = await http.get(Uri.parse("$baseUrl/ltp/$symbol"));
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return (data["price"] ?? 0).toDouble();
+    } else {
+      throw Exception("Failed to fetch LTP");
+    }
+  }
 }
