@@ -2,8 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/stock_detail_page.dart';
 import 'package:tradelogic/services/api_service.dart';
 
-class WatchlistPage extends StatelessWidget {
+class WatchlistPage extends StatefulWidget {
   const WatchlistPage({super.key});
+
+  @override
+  State<WatchlistPage> createState() => _WatchlistPageState();
+}
+
+class _WatchlistPageState extends State<WatchlistPage> {
+  late TextEditingController searchController = TextEditingController();
+
+  List allStocks = [];
+  List filteredStocks = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void loadWatchlist() async {
+    final data = await ApiService.getWatchlist();
+    setState(() {
+      allStocks = data;
+      filteredStocks = data;
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,54 +102,105 @@ class WatchlistPage extends StatelessWidget {
             );
           }
 
+          allStocks = snapshot.data!;
+          filteredStocks = allStocks;
+
           // 4️⃣ DATA OK
-          final stocks = snapshot.data!;
+          return Column(
+            children: [
+              // 🔍 SEARCH BAR
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: TextField(
+                  controller: searchController, // ✅ now NEVER null
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (query) {
+                    final q = query.toLowerCase();
 
-          return ListView.builder(
-            itemCount: stocks.length,
-            itemBuilder: (context, i) {
-              final stock = stocks[i];
+                    setState(() {
+                      filteredStocks = allStocks.where((stock) {
+                        final symbol = (stock["symbol"] ?? "")
+                            .toString()
+                            .toLowerCase();
+                        final name = (stock["name"] ?? "")
+                            .toString()
+                            .toLowerCase();
 
-              return Column(
-                children: [
-                  SizedBox(height: 5),
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: ListTile(
-                      tileColor: Color(0xFFF3F4F6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          16,
-                        ), // Set all corners to a radius of 20
-                        side: const BorderSide(
-                          color: Color(0xFFF3F4F6),
-                          width: 1,
-                        ), // Optional: add a border
-                      ),
-                      title: Text(
-                        stock["symbol"],
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                      subtitle: Text(
-                        stock["exchange"], // ⚠️ NOT price (see next section)
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => StockDetailPage(
-                              symbol: stock["symbol"],
-                              exchange: stock["exchange"],
+                        return symbol.contains(q) || name.contains(q);
+                      }).toList();
+                    });
+                  },
+                ),
+              ),
+
+              // 📃 WATCHLIST
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        itemCount: filteredStocks.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10), // 👈 spacing
+                        itemBuilder: (context, i) {
+                          final stock = filteredStocks[i];
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              title: Text(
+                                stock["symbol"] ?? "",
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                stock["name"] ?? "",
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              trailing: FutureBuilder<double>(
+                                future: ApiService.getLTP(stock["symbol"]),
+                                builder: (_, snap) {
+                                  if (!snap.hasData) {
+                                    return const Text(
+                                      "--",
+                                      style: TextStyle(color: Colors.grey),
+                                    );
+                                  }
+                                  return Text(
+                                    "₹${snap.data!.toStringAsFixed(2)}",
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => StockDetailPage(
+                                      symbol: stock["symbol"],
+                                      exchange: stock["exchange"],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
       ),
