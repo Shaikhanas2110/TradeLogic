@@ -3,7 +3,8 @@ import '../services/api_service.dart';
 
 class StrategyPage extends StatelessWidget {
   final String symbol;
-  StrategyPage({required this.symbol});
+  final String exchange;
+  StrategyPage({required this.symbol,required this.exchange});
 
   final buyCtrl = TextEditingController();
   final sellCtrl = TextEditingController();
@@ -32,6 +33,7 @@ class StrategyPage extends StatelessWidget {
               onPressed: () async {
                 await ApiService.startAlgo({
                   "symbol": symbol,
+                  "exchange":exchange,
                   "buy_price": double.parse(buyCtrl.text),
                   "sell_price": double.parse(sellCtrl.text),
                   "stop_loss": double.parse(slCtrl.text),

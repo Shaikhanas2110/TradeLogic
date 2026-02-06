@@ -113,7 +113,7 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => StrategyPage(symbol: widget.symbol),
+                      builder: (_) => StrategyPage(symbol: widget.symbol,exchange: widget.exchange,),
                     ),
                   );
                 },

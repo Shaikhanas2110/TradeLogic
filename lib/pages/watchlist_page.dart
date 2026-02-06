@@ -10,10 +10,10 @@ class WatchlistPage extends StatefulWidget {
 }
 
 class _WatchlistPageState extends State<WatchlistPage> {
-  late TextEditingController searchController = TextEditingController();
+  late TextEditingController searchController;
 
-  List allStocks = [];
-  List filteredStocks = [];
+  List<dynamic> allStocks = [];
+  List<dynamic> filteredStocks = [];
   bool isLoading = true;
 
   @override
@@ -22,20 +22,14 @@ class _WatchlistPageState extends State<WatchlistPage> {
     searchController = TextEditingController();
   }
 
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
-
-  void loadWatchlist() async {
-    final data = await ApiService.getWatchlist();
-    setState(() {
-      allStocks = data;
-      filteredStocks = data;
-      isLoading = false;
-    });
-  }
+  // void loadWatchlist() async {
+  //   final data = await ApiService.getWatchlist();
+  //   setState(() {
+  //     allStocks = data;
+  //     filteredStocks = data;
+  //     isLoading = false;
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -102,18 +96,35 @@ class _WatchlistPageState extends State<WatchlistPage> {
             );
           }
 
-          allStocks = snapshot.data!;
-          filteredStocks = allStocks;
+          // 4️⃣ DATA OK
 
           // 4️⃣ DATA OK
+          if (allStocks.isEmpty) {
+            allStocks = snapshot.data!;
+            filteredStocks = allStocks;
+            isLoading = false;
+          }
+
           return Column(
             children: [
               // 🔍 SEARCH BAR
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: TextField(
-                  controller: searchController, // ✅ now NEVER null
+                  controller: searchController,
                   textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: "Search stocks",
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: const Color(0xFFF3F4F6),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+
+                  // 🔑 SEARCH ONLY WHEN USER PRESSES ENTER
                   onSubmitted: (query) {
                     final q = query.toLowerCase();
 
