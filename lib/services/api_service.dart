@@ -36,11 +36,6 @@ class ApiService {
     );
   }
 
-  static Future<List<dynamic>> getPortfolio() async {
-    final res = await http.get(Uri.parse("$baseUrl/portfolio"));
-    return jsonDecode(res.body);
-  }
-
   static Future<double> getLTP(String symbol) async {
     final res = await http.get(Uri.parse("$baseUrl/ltp/$symbol"));
 
@@ -49,6 +44,16 @@ class ApiService {
       return (data["price"] ?? 0).toDouble();
     } else {
       throw Exception("Failed to fetch LTP");
+    }
+  }
+
+  static Future<List<dynamic>> getPortfolio() async {
+    final res = await http.get(Uri.parse("$baseUrl/portfolio"));
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to load portfolio");
     }
   }
 }
