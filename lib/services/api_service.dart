@@ -56,4 +56,14 @@ class ApiService {
       throw Exception("Failed to load portfolio");
     }
   }
+
+  static Future<Map<String, dynamic>> getCandles(String symbol) async {
+    final res = await http.get(Uri.parse("$baseUrl/candles/$symbol"));
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed candles");
+    }
+  }
 }

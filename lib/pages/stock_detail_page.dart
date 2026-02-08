@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tradelogic/pages/chart_page.dart';
 import '../services/api_service.dart';
 import 'strategy_page.dart';
 
@@ -90,12 +91,7 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Center(
-                  child: Text(
-                    "Chart coming soon",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
+                child: ChartPage(symbol: widget.symbol),
               ),
             ),
           ],
@@ -113,7 +109,10 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => StrategyPage(symbol: widget.symbol,exchange: widget.exchange,),
+                      builder: (_) => StrategyPage(
+                        symbol: widget.symbol,
+                        exchange: widget.exchange,
+                      ),
                     ),
                   );
                 },
