@@ -66,4 +66,9 @@ class ApiService {
       throw Exception("Failed candles");
     }
   }
+
+  static Future<List<dynamic>> getTradeLogs(String symbol) async {
+    final res = await http.get(Uri.parse("$baseUrl/trade_logs/$symbol"));
+    return jsonDecode(res.body);
+  }
 }
