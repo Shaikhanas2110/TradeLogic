@@ -22,15 +22,6 @@ class _WatchlistPageState extends State<WatchlistPage> {
     searchController = TextEditingController();
   }
 
-  // void loadWatchlist() async {
-  //   final data = await ApiService.getWatchlist();
-  //   setState(() {
-  //     allStocks = data;
-  //     filteredStocks = data;
-  //     isLoading = false;
-  //   });
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,6 +193,8 @@ class _WatchlistPageState extends State<WatchlistPage> {
                                     builder: (_) => StockDetailPage(
                                       symbol: stock["symbol"],
                                       exchange: stock["exchange"],
+                                      instrumentKey: stock["instrument_key"],
+                                      
                                     ),
                                   ),
                                 );

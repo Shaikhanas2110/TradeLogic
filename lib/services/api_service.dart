@@ -57,13 +57,47 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getCandles(String symbol) async {
-    final res = await http.get(Uri.parse("$baseUrl/candles/$symbol"));
+  static Future<Map<String, dynamic>> getCandles({
+    required dynamic instrumentKey,
+    required String timeframe,
+    required bool isIntraday,
+  }) async {
+    final interval = _mapTimeframeToInterval(timeframe);
 
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      throw Exception("Failed candles");
+    final uri = Uri.parse('$baseUrl/candles/$instrumentKey').replace(
+      queryParameters: {
+        'interval': interval,
+        'intraday': isIntraday.toString(), // pass flag to backend
+      },
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed: ${response.statusCode} - ${response.body}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+    if (data.containsKey('error')) {
+      throw Exception('Backend error: ${data['error']}');
+    }
+
+    return data;
+  }
+
+  static String _mapTimeframeToInterval(String timeframe) {
+    switch (timeframe) {
+      case "1m":
+        return "1minute";
+      case "5m":
+        return "5minute";
+      case "15m":
+        return "15minute";
+      case "1d":
+        return "1minute"; // use 1min for intraday to show time movement
+      default:
+        return "1minute";
     }
   }
 

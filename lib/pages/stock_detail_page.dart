@@ -8,11 +8,13 @@ import 'strategy_page.dart';
 class StockDetailPage extends StatefulWidget {
   final String symbol;
   final String exchange;
+  final String instrumentKey;
 
   const StockDetailPage({
     super.key,
     required this.symbol,
     required this.exchange,
+    required this.instrumentKey,
   });
 
   @override
@@ -91,7 +93,10 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: ChartPage(symbol: widget.symbol),
+                child: ChartPage(
+                  symbol: widget.symbol,
+                  instrumentKey: widget.instrumentKey,
+                ),
               ),
             ),
           ],

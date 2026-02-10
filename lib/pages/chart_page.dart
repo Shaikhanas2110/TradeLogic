@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 
 class ChartPage extends StatefulWidget {
   final String symbol;
-  const ChartPage({super.key, required this.symbol});
+  final dynamic instrumentKey;
+
+  const ChartPage({
+    super.key,
+    required this.symbol,
+    required this.instrumentKey,
+  });
 
   @override
   State<ChartPage> createState() => _ChartPageState();
@@ -23,10 +30,10 @@ class _ChartPageState extends State<ChartPage> {
   bool showEMA21 = true;
   String timeframe = "1m";
 
-  // NEW: Strategy selector
   String selectedStrategy = "None";
-
   final List<String> strategies = ["None", "EMA Crossover", "RSI"];
+
+  bool isIntraday = false;
 
   @override
   void initState() {
@@ -36,8 +43,22 @@ class _ChartPageState extends State<ChartPage> {
 
   Future<void> loadChart() async {
     try {
-      final data = await ApiService.getCandles(widget.symbol);
-      final logs = await ApiService.getTradeLogs(widget.symbol);
+      isIntraday = timeframe == "1d";
+
+      final data = await ApiService.getCandles(
+        instrumentKey: widget.instrumentKey,
+        timeframe: timeframe,
+        isIntraday: isIntraday,
+      );
+
+      final logs = await ApiService.getTradeLogs(widget.instrumentKey);
+
+      print("Candles loaded: ${data['candles']?.length ?? 0} items");
+      if (data['candles']?.isNotEmpty == true) {
+        print("First candle: ${data['candles'][0]}");
+        print("Type of 't': ${data['candles'][0]['t']?.runtimeType}");
+        print("Type of 'c': ${data['candles'][0]['c']?.runtimeType}");
+      }
 
       setState(() {
         candles = data["candles"] ?? [];
@@ -46,47 +67,48 @@ class _ChartPageState extends State<ChartPage> {
         rsi = data["indicators"]?["rsi_14"] ?? [];
         tradeLogs = logs ?? [];
 
-        generateStrategySignals(); // ← NEW
+        generateStrategySignals();
       });
     } catch (e) {
       debugPrint("Error loading chart: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to load data: $e")));
     }
   }
 
-  // NEW: Generate Buy/Sell signals based on selected strategy
   void generateStrategySignals() {
     signalSpots.clear();
     if (candles.isEmpty || selectedStrategy == "None") return;
 
     if (selectedStrategy == "EMA Crossover") {
       for (int i = 1; i < candles.length; i++) {
-        final prevEma9 = (i - 1 < ema9.length) ? ema9[i - 1] : null;
-        final currEma9 = (i < ema9.length) ? ema9[i] : null;
-        final prevEma21 = (i - 1 < ema21.length) ? ema21[i - 1] : null;
-        final currEma21 = (i < ema21.length) ? ema21[i] : null;
+        final prevEma9 = (i - 1 < ema9.length) ? _toDouble(ema9[i - 1]) : null;
+        final currEma9 = (i < ema9.length) ? _toDouble(ema9[i]) : null;
+        final prevEma21 = (i - 1 < ema21.length)
+            ? _toDouble(ema21[i - 1])
+            : null;
+        final currEma21 = (i < ema21.length) ? _toDouble(ema21[i]) : null;
 
-        final close = (candles[i]["c"] as num?)?.toDouble() ?? 0;
+        final close = _toDouble(candles[i]["c"]);
 
         if (prevEma9 != null &&
             currEma9 != null &&
             prevEma21 != null &&
             currEma21 != null) {
-          // Golden Cross → BUY
           if (prevEma9 <= prevEma21 && currEma9 > currEma21) {
             signalSpots.add(
               ScatterSpot(
                 i.toDouble(),
-                close * 0.998, // slightly below price
+                close! * 0.998,
                 dotPainter: FlDotCirclePainter(color: Colors.green, radius: 8),
               ),
             );
-          }
-          // Death Cross → SELL
-          else if (prevEma9 >= prevEma21 && currEma9 < currEma21) {
+          } else if (prevEma9 >= prevEma21 && currEma9 < currEma21) {
             signalSpots.add(
               ScatterSpot(
                 i.toDouble(),
-                close * 1.002, // slightly above price
+                close! * 1.002,
                 dotPainter: FlDotCirclePainter(color: Colors.red, radius: 8),
               ),
             );
@@ -95,26 +117,24 @@ class _ChartPageState extends State<ChartPage> {
       }
     } else if (selectedStrategy == "RSI") {
       for (int i = 0; i < rsi.length && i < candles.length; i++) {
-        final rsiVal = (rsi[i] as num?)?.toDouble();
-        final close = (candles[i]["c"] as num?)?.toDouble() ?? 0;
+        final rsiVal = _toDouble(rsi[i]);
+        final close = _toDouble(candles[i]["c"]);
 
         if (rsiVal == null) continue;
 
         if (rsiVal < 30) {
-          // Oversold → BUY
           signalSpots.add(
             ScatterSpot(
               i.toDouble(),
-              close * 0.998,
+              close! * 0.998,
               dotPainter: FlDotCirclePainter(color: Colors.green, radius: 8),
             ),
           );
         } else if (rsiVal > 70) {
-          // Overbought → SELL
           signalSpots.add(
             ScatterSpot(
               i.toDouble(),
-              close * 1.002,
+              close! * 1.002,
               dotPainter: FlDotCirclePainter(color: Colors.red, radius: 8),
             ),
           );
@@ -123,27 +143,20 @@ class _ChartPageState extends State<ChartPage> {
     }
   }
 
-  // ... (keep your existing buildPriceSpots, buildEMA, buildRSI, getMinPrice, getMaxPrice methods unchanged)
-
-  List<FlSpot> buildPriceSpots() {
-    return List.generate(candles.length, (i) {
-      final close = candles[i]["c"];
-      return FlSpot(
-        i.toDouble(),
-        (close is num && !close.isNaN && !close.isInfinite)
-            ? close.toDouble()
-            : 0,
-      );
-    });
+  // Safe conversion helper
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   List<FlSpot> buildEMA(List list) {
     final spots = <FlSpot>[];
     for (int i = 0; i < list.length && i < candles.length; i++) {
-      final val = list[i];
-      if (val == null || val is! num) continue;
-      if (val.isNaN || val.isInfinite || val <= 0) continue;
-      spots.add(FlSpot(i.toDouble(), val.toDouble()));
+      final val = _toDouble(list[i]);
+      if (val == null || val.isNaN || val.isInfinite || val <= 0) continue;
+      spots.add(FlSpot(i.toDouble(), val));
     }
     return spots;
   }
@@ -151,36 +164,71 @@ class _ChartPageState extends State<ChartPage> {
   List<FlSpot> buildRSI() {
     final spots = <FlSpot>[];
     for (int i = 0; i < rsi.length; i++) {
-      final val = rsi[i];
-      if (val == null || val is! num) continue;
-      if (val.isNaN || val.isInfinite) continue;
-      spots.add(FlSpot(i.toDouble(), val.toDouble()));
+      final val = _toDouble(rsi[i]);
+      if (val == null || val.isNaN || val.isInfinite) continue;
+      spots.add(FlSpot(i.toDouble(), val));
     }
     return spots;
+  }
+
+  List<FlSpot> buildPriceSpots() {
+    final spots = <FlSpot>[];
+    for (int i = 0; i < candles.length; i++) {
+      final cValue = candles[i]["c"];
+      double close = 0.0;
+
+      if (cValue is num) {
+        close = cValue.toDouble();
+      } else if (cValue is String) {
+        close = double.tryParse(cValue) ?? 0.0;
+      }
+
+      if (close > 0) {
+        spots.add(FlSpot(i.toDouble(), close));
+      }
+    }
+    return spots;
+  }
+
+  double getMinX() {
+    if (candles.isEmpty) return 0;
+    final t = candles.first["t"];
+    if (t is num) return t.toDouble();
+    if (t is String) return double.tryParse(t) ?? 0;
+    return 0;
+  }
+
+  double getMaxX() {
+    if (candles.isEmpty) return 1;
+    final t = candles.last["t"];
+    if (t is num) return t.toDouble();
+    if (t is String) return double.tryParse(t) ?? candles.length - 1;
+    return candles.length - 1;
   }
 
   double getMinPrice() {
     if (candles.isEmpty) return 1.0;
     final prices = candles
-        .map((c) => c["c"])
-        .whereType<num>()
-        .where((v) => v > 0 && !v.isNaN && !v.isInfinite)
+        .map((c) => _toDouble(c["c"]))
+        .whereType<double>()
+        .where((v) => v > 0 && v.isFinite)
         .toList();
-    return prices.isEmpty
-        ? 1.0
-        : prices.reduce((a, b) => a < b ? a : b).toDouble();
+    return prices.isEmpty ? 1.0 : prices.reduce((a, b) => a < b ? a : b);
   }
 
   double getMaxPrice() {
     if (candles.isEmpty) return 100.0;
     final prices = candles
-        .map((c) => c["c"])
-        .whereType<num>()
-        .where((v) => v > 0 && !v.isNaN && !v.isInfinite)
+        .map((c) => _toDouble(c["c"]))
+        .whereType<double>()
+        .where((v) => v > 0 && v.isFinite)
         .toList();
-    return prices.isEmpty
-        ? 100.0
-        : prices.reduce((a, b) => a > b ? a : b).toDouble();
+    return prices.isEmpty ? 100.0 : prices.reduce((a, b) => a > b ? a : b);
+  }
+
+  String _formatXLabel(double value) {
+    final date = DateTime.fromMillisecondsSinceEpoch(value.toInt() * 1000);
+    return DateFormat('HH:mm').format(date);
   }
 
   @override
@@ -189,6 +237,9 @@ class _ChartPageState extends State<ChartPage> {
     final maxY = getMaxPrice();
     final safeMinY = minY.isFinite && minY > 0 ? minY * 0.995 : 0.0;
     final safeMaxY = maxY.isFinite && maxY > minY ? maxY * 1.005 : 100.0;
+
+    final minX = getMinX();
+    final maxX = getMaxX();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -218,7 +269,6 @@ class _ChartPageState extends State<ChartPage> {
                   }).toList(),
                 ),
 
-                // NEW: Strategy Selector
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -235,9 +285,12 @@ class _ChartPageState extends State<ChartPage> {
                         child: DropdownButton<String>(
                           isExpanded: true,
                           value: selectedStrategy,
-                          items: strategies.map((s) {
-                            return DropdownMenuItem(value: s, child: Text(s));
-                          }).toList(),
+                          items: strategies
+                              .map(
+                                (s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)),
+                              )
+                              .toList(),
                           onChanged: (value) {
                             if (value != null) {
                               setState(() {
@@ -252,20 +305,46 @@ class _ChartPageState extends State<ChartPage> {
                   ),
                 ),
 
-                // Price Chart
                 Expanded(
                   flex: 3,
                   child: Stack(
                     children: [
                       LineChart(
                         LineChartData(
-                          minX: 0,
-                          maxX: candles.length.toDouble() - 1,
+                          minX: minX,
+                          maxX: maxX,
                           minY: safeMinY,
                           maxY: safeMaxY,
                           gridData: const FlGridData(show: false),
-                          titlesData: const FlTitlesData(show: false),
                           borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 30,
+                                getTitlesWidget: (value, meta) {
+                                  return Text(
+                                    _formatXLabel(value),
+                                    style: const TextStyle(fontSize: 10),
+                                  );
+                                },
+                                interval: isIntraday ? 1800 : null,
+                              ),
+                            ),
+                            leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 40,
+                              ),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                          ),
                           lineBarsData: [
                             LineChartBarData(
                               spots: buildPriceSpots(),
@@ -288,76 +367,66 @@ class _ChartPageState extends State<ChartPage> {
                           ],
                           lineTouchData: LineTouchData(
                             enabled: true,
-                            handleBuiltInTouches:
-                                true, // Important for default hover/touch behavior
+                            handleBuiltInTouches: true,
                             touchTooltipData: LineTouchTooltipData(
-                              // Dynamic color (optional but nice)
                               getTooltipColor: (touchedSpot) =>
                                   Colors.black.withOpacity(0.75),
-                              tooltipRoundedRadius:
-                                  8, // or tooltipBorderRadius: BorderRadius.circular(8) if newer version
+                              tooltipRoundedRadius: 8,
                               tooltipPadding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
                               ),
                               tooltipMargin: 16,
                               fitInsideHorizontally: true,
-                              fitInsideVertically:
-                                  true, // Prevents tooltip from going out of bounds
-                              // Show price only (focus on the main price line)
-                              getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                if (touchedSpots.isEmpty) return [];
+                              fitInsideVertically: true,
+                              getTooltipItems:
+                                  (List<LineBarSpot> touchedSpots) {
+                                    if (touchedSpots.isEmpty) return [];
 
-                                // Prefer the main price line (barIndex 0 is usually the candle price)
-                                final priceSpot = touchedSpots.firstWhere(
-                                  (spot) => spot.barIndex == 0,
-                                  orElse: () => touchedSpots
-                                      .first, // fallback to any spot
-                                );
-
-                                final price = priceSpot.y.toStringAsFixed(2);
-
-                                return [
-                                  LineTooltipItem(
-                                    'Price: $price',
-                                    const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ];
-                              },
-                            ),
-                            // Show vertical line + dot for better feedback on hover/tap
-                            getTouchedSpotIndicator:
-                                (
-                                  LineChartBarData barData,
-                                  List<int> indicators,
-                                ) {
-                                  return indicators.map((index) {
-                                    return TouchedSpotIndicatorData(
-                                      FlLine(
-                                        color: Colors.grey.withOpacity(0.6),
-                                        strokeWidth: 1.5,
-                                      ),
-                                      FlDotData(
-                                        show: true,
-                                        getDotPainter:
-                                            (spot, percent, bar, idx) =>
-                                                FlDotCirclePainter(
-                                                  radius: 5,
-                                                  color: Colors.white,
-                                                  strokeWidth: 2,
-                                                  strokeColor:
-                                                      bar.color ??
-                                                      Colors.greenAccent,
-                                                ),
-                                      ),
+                                    final priceSpot = touchedSpots.firstWhere(
+                                      (spot) => spot.barIndex == 0,
+                                      orElse: () => touchedSpots.first,
                                     );
-                                  }).toList();
-                                },
-                            // Optional: make hover more responsive on web
+
+                                    final price = priceSpot.y.toStringAsFixed(
+                                      2,
+                                    );
+                                    final x = priceSpot.x;
+                                    final time = _formatXLabel(x);
+
+                                    return [
+                                      LineTooltipItem(
+                                        '$time\nPrice: $price',
+                                        const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ];
+                                  },
+                            ),
+                            getTouchedSpotIndicator: (barData, indicators) {
+                              return indicators.map((index) {
+                                return TouchedSpotIndicatorData(
+                                  FlLine(
+                                    color: Colors.grey.withOpacity(0.6),
+                                    strokeWidth: 1.5,
+                                  ),
+                                  FlDotData(
+                                    show: true,
+                                    getDotPainter: (spot, percent, bar, idx) =>
+                                        FlDotCirclePainter(
+                                          radius: 5,
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                          strokeColor:
+                                              bar.color ?? Colors.greenAccent,
+                                        ),
+                                  ),
+                                );
+                              }).toList();
+                            },
                             mouseCursorResolver: (event, response) {
                               return response == null ||
                                       response.lineBarSpots == null
@@ -371,8 +440,8 @@ class _ChartPageState extends State<ChartPage> {
                       IgnorePointer(
                         child: ScatterChart(
                           ScatterChartData(
-                            minX: 0,
-                            maxX: candles.length.toDouble() - 1,
+                            minX: minX,
+                            maxX: maxX,
                             minY: safeMinY,
                             maxY: safeMaxY,
                             scatterSpots: signalSpots,
@@ -386,8 +455,6 @@ class _ChartPageState extends State<ChartPage> {
                   ),
                 ),
 
-                // Rest of your UI (EMA toggles, RSI chart) remains the same
-                // ... (keep your existing EMA toggle and RSI Expanded block)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -414,7 +481,6 @@ class _ChartPageState extends State<ChartPage> {
                   ),
                 ),
 
-                // RSI Panel
                 Expanded(
                   flex: 1,
                   child: LineChart(
