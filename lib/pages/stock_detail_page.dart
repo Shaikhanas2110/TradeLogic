@@ -93,9 +93,8 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: ChartPage(
+                child: SimplePriceChart(
                   symbol: widget.symbol,
-                  instrumentKey: widget.instrumentKey,
                 ),
               ),
             ),
