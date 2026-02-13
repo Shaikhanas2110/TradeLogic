@@ -95,6 +95,7 @@ class _StockDetailPageState extends State<StockDetailPage> {
                 ),
                 child: SimplePriceChart(
                   symbol: widget.symbol,
+                  instrumentKey: widget.instrumentKey,
                 ),
               ),
             ),
