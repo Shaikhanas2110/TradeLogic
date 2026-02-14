@@ -52,7 +52,7 @@ class _WatchlistPageState extends State<WatchlistPage> {
           children: const [
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage('images/logo1.png'),
+              backgroundImage: AssetImage('images/logo.png'),
             ),
             SizedBox(width: 12),
             Text(
