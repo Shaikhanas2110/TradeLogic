@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/dashboard_page.dart';
 import 'package:tradelogic/pages/register_page.dart';
+import 'dart:ui';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,138 +25,134 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Container(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          /// 🔥 DARK GRADIENT BACKGROUND
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF000000),
+                  Color(0xFF0F0F1A),
+                  Color(0xFF1A1A2E),
+                ],
               ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height * 0.7,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 150,
-                      width: 150,
-                      child: Image.asset(
-                        'images/logo.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "Welcome Back",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Login to your trading dashboard",
-                      style: TextStyle(color: Colors.grey, fontSize: 20),
-                    ),
-                    SizedBox(height: 30),
+            ),
+          ),
 
-                    Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          fieldTitle("Email"),
+          /// 🔵 TOP RIGHT GLOW
+          Positioned(
+            top: -120,
+            right: -120,
+            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
+          ),
 
-                          TextFormField(
-                            style: const TextStyle(color: Colors.black),
-                            keyboardType: TextInputType.emailAddress,
-                            onSaved: (value) {
-                              email = value!;
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Email is required';
-                              }
-                              if (!RegExp(
-                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                              ).hasMatch(value)) {
-                                return 'Enter a valid email';
-                              }
-                              return null;
-                            },
-                            decoration: const InputDecoration(
-                              labelText: "Email",
-                              labelStyle: TextStyle(color: Colors.grey),
-                              errorStyle: TextStyle(color: Colors.redAccent),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.grey),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Colors.indigo,
-                                  width: 2,
-                                ),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.redAccent),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.redAccent),
+          /// 🔵 BOTTOM LEFT GLOW
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
+          ),
+
+          /// 📄 CONTENT
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      padding: const EdgeInsets.all(25),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            /// LOGO
+                            SizedBox(
+                              height: 120,
+                              width: 120,
+                              child: Image.asset(
+                                'images/logo.png',
+                                fit: BoxFit.contain,
                               ),
                             ),
-                          ),
 
-                          const SizedBox(height: 15),
-                          fieldTitle("Password"),
+                            const SizedBox(height: 15),
 
-                          /// PASSWORD
-                          TextFormField(
-                            style: const TextStyle(color: Colors.black),
-                            obscureText: _obscurePassword == true,
-                            onSaved: (value) {
-                              password = value!;
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Password is required';
-                              }
-                              if (value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
-                            decoration: InputDecoration(
-                              labelText: "Password",
-                              labelStyle: const TextStyle(color: Colors.grey),
-                              errorStyle: const TextStyle(
-                                color: Colors.redAccent,
+                            const Text(
+                              "Welcome Back",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 26,
                               ),
-                              enabledBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.grey),
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            const Text(
+                              "Login to your trading dashboard",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 14,
                               ),
-                              focusedBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Colors.indigo,
-                                  width: 2,
-                                ),
-                              ),
-                              errorBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.redAccent),
-                              ),
-                              focusedErrorBorder: const OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.redAccent),
-                              ),
-                              suffixIcon: IconButton(
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            /// EMAIL FIELD
+                            _glassField(
+                              label: "Email",
+                              keyboard: TextInputType.emailAddress,
+                              onSaved: (value) => email = value!,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Email is required';
+                                }
+                                if (!RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                ).hasMatch(value)) {
+                                  return 'Enter a valid email';
+                                }
+                                return null;
+                              },
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            /// PASSWORD FIELD
+                            _glassField(
+                              label: "Password",
+                              obscure: _obscurePassword,
+                              onSaved: (value) => password = value!,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Password is required';
+                                }
+                                if (value.length < 6) {
+                                  return 'Minimum 6 characters';
+                                }
+                                return null;
+                              },
+                              suffix: IconButton(
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off
                                       : Icons.visibility,
-                                  color: Colors.grey,
+                                  color: Colors.white70,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -164,74 +161,139 @@ class _LoginPageState extends State<LoginPage> {
                                 },
                               ),
                             ),
-                          ),
 
-                          const SizedBox(height: 30),
+                            const SizedBox(height: 25),
 
-                          ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                                  return DashboardPage();
-                                },));
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.all(20.0),
-                              backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.black,
-                              minimumSize: const Size(double.infinity, 40),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                            ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          /// REGISTER
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RegisterPage(),
+                            /// LOGIN BUTTON
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_formKey.currentState!.validate()) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DashboardPage(),
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
                                 ),
-                              );
-                            },
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: "Don't have an account? ",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: 'Sign Up',
-                                    style: TextStyle(
-                                      color: Colors.indigo,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+                                backgroundColor: Colors.indigoAccent,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: const Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+
+                            const SizedBox(height: 15),
+
+                            /// REGISTER LINK
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RegisterPage(),
+                                  ),
+                                );
+                              },
+                              child: RichText(
+                                text: const TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: "Don't have an account? ",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                    TextSpan(
+                                      text: "Sign Up",
+                                      style: TextStyle(
+                                        color: Colors.indigoAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glassField({
+    required String label,
+    required FormFieldSetter<String> onSaved,
+    required FormFieldValidator<String> validator,
+    TextInputType keyboard = TextInputType.text,
+    bool obscure = false,
+    Widget? suffix,
+  }) {
+    return TextFormField(
+      style: const TextStyle(color: Colors.white),
+      keyboardType: keyboard,
+      obscureText: obscure,
+      onSaved: onSaved,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.06),
+
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.indigoAccent, width: 2),
+        ),
+
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+
+        suffixIcon: suffix,
+      ),
+    );
+  }
+
+  Widget _buildGlowCircle(Color color) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         ),
       ),
     );

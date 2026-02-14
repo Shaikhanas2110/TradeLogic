@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'dart:ui';
 
 class StrategyPage extends StatelessWidget {
   final String symbol;
   final String exchange;
-  StrategyPage({required this.symbol,required this.exchange});
+  StrategyPage({required this.symbol, required this.exchange});
 
   final buyCtrl = TextEditingController();
   final sellCtrl = TextEditingController();
@@ -14,74 +15,171 @@ class StrategyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text("Create Strategy"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _field("Buy Price", buyCtrl),
-            _field("Sell Price", sellCtrl),
-            _field("Stop Loss", slCtrl),
-            _field("Quantity", qtyCtrl),
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () async {
-                await ApiService.startAlgo({
-                  "symbol": symbol,
-                  "exchange":exchange,
-                  "buy_price": double.parse(buyCtrl.text),
-                  "sell_price": double.parse(sellCtrl.text),
-                  "stop_loss": double.parse(slCtrl.text),
-                  "quantity": int.parse(qtyCtrl.text),
-                });
-
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.all(20.0),
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.black,
-                minimumSize: Size(double.infinity, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
-                ),
+        elevation: 0,
+        automaticallyImplyLeading: true,
+        foregroundColor: Colors.white,
+        titleSpacing: 16,
+        title: Row(
+          children: const [
+            Text(
+              "Create Strategy",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
-              child: Text('Start Algo', style: TextStyle(fontSize: 18,color: Colors.white)),
             ),
           ],
+        ),
+      ),
+
+      body: Stack(
+        children: [
+          /// 🔥 DARK GRADIENT
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF000000),
+                  Color(0xFF0F0F1A),
+                  Color(0xFF1A1A2E),
+                ],
+              ),
+            ),
+          ),
+
+          /// 🔵 GLOW TOP RIGHT
+          Positioned(
+            top: -120,
+            right: -120,
+            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
+          ),
+
+          /// 🔵 GLOW BOTTOM LEFT
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
+          ),
+
+          /// 📄 CONTENT
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// 🔹 GLASS FORM CARD
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.08),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              _glassField("Buy Price", buyCtrl),
+                              _glassField("Sell Price", sellCtrl),
+                              _glassField("Stop Loss", slCtrl),
+                              _glassField("Quantity", qtyCtrl),
+                              const SizedBox(height: 20),
+
+                              /// 🚀 START ALGO BUTTON
+                              ElevatedButton(
+                                onPressed: () async {
+                                  await ApiService.startAlgo({
+                                    "symbol": symbol,
+                                    "exchange": exchange,
+                                    "buy_price": double.parse(buyCtrl.text),
+                                    "sell_price": double.parse(sellCtrl.text),
+                                    "stop_loss": double.parse(slCtrl.text),
+                                    "quantity": int.parse(qtyCtrl.text),
+                                  });
+
+                                  Navigator.pop(context);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.all(20),
+                                  backgroundColor: Colors.indigoAccent,
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Start Algo',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glassField(String label, TextEditingController c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: c,
+        style: const TextStyle(color: Colors.white),
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white70),
+
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.06),
+
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          ),
+
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.indigoAccent, width: 2),
+          ),
         ),
       ),
     );
   }
 
-  Widget _field(String label, TextEditingController c) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: c,
-        style: TextStyle(color: Colors.black),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: Colors.grey),
-          errorStyle: TextStyle(color: Colors.redAccent),
-
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.indigo, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.redAccent),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.redAccent),
-          ),
+  Widget _buildGlowCircle(Color color) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         ),
       ),
     );
