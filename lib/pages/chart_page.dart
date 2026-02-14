@@ -148,7 +148,7 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
                     maxX: maxX,
                     minY: minY,
                     maxY: maxY,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Colors.black,
                     gridData: FlGridData(
                       show: true,
                       drawVerticalLine: true,

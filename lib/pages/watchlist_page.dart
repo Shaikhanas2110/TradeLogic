@@ -12,9 +12,24 @@ class WatchlistPage extends StatefulWidget {
 class _WatchlistPageState extends State<WatchlistPage> {
   late TextEditingController searchController;
 
+  String selectedFilter = "A-Z";
   List<dynamic> allStocks = [];
   List<dynamic> filteredStocks = [];
   bool isLoading = true;
+
+  void applyFilter() {
+    setState(() {
+      if (selectedFilter == "A-Z") {
+        filteredStocks.sort(
+          (a, b) => (a["symbol"] ?? "").compareTo(b["symbol"] ?? ""),
+        );
+      } else if (selectedFilter == "Price Low-High") {
+        filteredStocks.sort((a, b) => (a["ltp"] ?? 0).compareTo(b["ltp"] ?? 0));
+      } else if (selectedFilter == "Price High-Low") {
+        filteredStocks.sort((a, b) => (b["ltp"] ?? 0).compareTo(a["ltp"] ?? 0));
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -135,6 +150,35 @@ class _WatchlistPageState extends State<WatchlistPage> {
                 ),
               ),
 
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    DropdownButton<String>(
+                      value: selectedFilter,
+                      focusColor: Color(0xFFF3F4F6),
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: "A-Z", child: Text("A-Z")),
+                        DropdownMenuItem(
+                          value: "Price Low-High",
+                          child: Text("Price Low → High"),
+                        ),
+                        DropdownMenuItem(
+                          value: "Price High-Low",
+                          child: Text("Price High → Low"),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        selectedFilter = value!;
+                        applyFilter();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
               // 📃 WATCHLIST
               Expanded(
                 child: isLoading
@@ -177,6 +221,10 @@ class _WatchlistPageState extends State<WatchlistPage> {
                                       style: TextStyle(color: Colors.grey),
                                     );
                                   }
+
+                                  // 🔥 Store LTP inside stock object
+                                  stock["ltp"] = snap.data!;
+
                                   return Text(
                                     "₹${snap.data!.toStringAsFixed(2)}",
                                     style: const TextStyle(
@@ -194,7 +242,6 @@ class _WatchlistPageState extends State<WatchlistPage> {
                                       symbol: stock["symbol"],
                                       exchange: stock["exchange"],
                                       instrumentKey: stock["instrument_key"],
-                                      
                                     ),
                                   ),
                                 );
