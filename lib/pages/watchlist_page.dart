@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/stock_detail_page.dart';
 import 'package:tradelogic/services/api_service.dart';
+import 'dart:ui';
 
 class WatchlistPage extends StatefulWidget {
   const WatchlistPage({super.key});
@@ -40,220 +41,304 @@ class _WatchlistPageState extends State<WatchlistPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
         titleSpacing: 16,
         title: Row(
-          children: [
-            /// Profile Avatar
+          children: const [
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage('images/logo1.png'), // replace image
+              backgroundImage: AssetImage('images/logo1.png'),
             ),
-
-            const SizedBox(width: 12),
-
-            /// Greeting + Name
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Text(
-                  "Watchlist",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            SizedBox(width: 12),
+            Text(
+              "Watchlist",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: ApiService.getWatchlist(),
-        builder: (context, snapshot) {
-          // 1️⃣ LOADING
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // 2️⃣ ERROR
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error: ${snapshot.error}",
-                style: const TextStyle(color: Colors.red),
+      body: Stack(
+        children: [
+          /// 🔥 DARK GRADIENT BASE
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF000000),
+                  Color(0xFF0F0F1A),
+                  Color(0xFF1A1A2E),
+                ],
               ),
-            );
-          }
+            ),
+          ),
 
-          // 3️⃣ EMPTY
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text(
-                "No stocks found",
-                style: TextStyle(color: Colors.grey),
-              ),
-            );
-          }
+          /// 🔵 TOP RIGHT GLOW
+          Positioned(
+            top: -120,
+            right: -120,
+            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
+          ),
 
-          // 4️⃣ DATA OK
+          /// 🔵 BOTTOM LEFT GLOW
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
+          ),
 
-          // 4️⃣ DATA OK
-          if (allStocks.isEmpty) {
-            allStocks = snapshot.data!;
-            filteredStocks = allStocks;
-            isLoading = false;
-          }
+          /// 📄 CONTENT
+          FutureBuilder<List<dynamic>>(
+            future: ApiService.getWatchlist(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.indigoAccent),
+                );
+              }
 
-          return Column(
-            children: [
-              // 🔍 SEARCH BAR
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: TextField(
-                  controller: searchController,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: "Search stocks",
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: const Color(0xFFF3F4F6),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    "Error: ${snapshot.error}",
+                    style: const TextStyle(color: Colors.red),
                   ),
+                );
+              }
 
-                  // 🔑 SEARCH ONLY WHEN USER PRESSES ENTER
-                  onSubmitted: (query) {
-                    final q = query.toLowerCase();
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Text(
+                    "No stocks found",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
+              }
 
-                    setState(() {
-                      filteredStocks = allStocks.where((stock) {
-                        final symbol = (stock["symbol"] ?? "")
-                            .toString()
-                            .toLowerCase();
-                        final name = (stock["name"] ?? "")
-                            .toString()
-                            .toLowerCase();
+              if (allStocks.isEmpty) {
+                allStocks = snapshot.data!;
+                filteredStocks = allStocks;
+                isLoading = false;
+              }
 
-                        return symbol.contains(q) || name.contains(q);
-                      }).toList();
-                    });
-                  },
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(0, 50, 0, 0),
+                child: Column(
                   children: [
-                    DropdownButton<String>(
-                      value: selectedFilter,
-                      focusColor: Color(0xFFF3F4F6),
-                      underline: const SizedBox(),
-                      items: const [
-                        DropdownMenuItem(value: "A-Z", child: Text("A-Z")),
-                        DropdownMenuItem(
-                          value: "Price Low-High",
-                          child: Text("Price Low → High"),
-                        ),
-                        DropdownMenuItem(
-                          value: "Price High-Low",
-                          child: Text("Price High → Low"),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        selectedFilter = value!;
-                        applyFilter();
-                      },
-                    ),
-                  ],
-                ),
-              ),
+                    /// 🔍 GLASS SEARCH BAR
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                          child: TextField(
+                            controller: searchController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: "Search stocks",
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.white70,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSubmitted: (query) {
+                              final q = query.toLowerCase();
 
-              // 📃 WATCHLIST
-              Expanded(
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                              setState(() {
+                                filteredStocks = allStocks.where((stock) {
+                                  final symbol = (stock["symbol"] ?? "")
+                                      .toString()
+                                      .toLowerCase();
+                                  final name = (stock["name"] ?? "")
+                                      .toString()
+                                      .toLowerCase();
+
+                                  return symbol.contains(q) || name.contains(q);
+                                }).toList();
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    /// 🔽 GLASS FILTER DROPDOWN
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.08),
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedFilter,
+                                  dropdownColor: const Color(0xFF1A1A2E),
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: Colors.white,
+                                  ),
+                                  style: const TextStyle(color: Colors.white),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: "A-Z",
+                                      child: Text("A-Z"),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: "Price Low-High",
+                                      child: Text("Price Low → High"),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: "Price High-Low",
+                                      child: Text("Price High → Low"),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedFilter = value!;
+                                      applyFilter();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    /// 📃 WATCHLIST
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: filteredStocks.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10), // 👈 spacing
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, i) {
                           final stock = filteredStocks[i];
 
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF3F4F6),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              title: Text(
-                                stock["symbol"] ?? "",
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.08),
+                                  ),
                                 ),
-                              ),
-                              subtitle: Text(
-                                stock["name"] ?? "",
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              trailing: FutureBuilder<double>(
-                                future: ApiService.getLTP(stock["symbol"]),
-                                builder: (_, snap) {
-                                  if (!snap.hasData) {
-                                    return const Text(
-                                      "--",
-                                      style: TextStyle(color: Colors.grey),
-                                    );
-                                  }
-
-                                  // 🔥 Store LTP inside stock object
-                                  stock["ltp"] = snap.data!;
-
-                                  return Text(
-                                    "₹${snap.data!.toStringAsFixed(2)}",
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    stock["symbol"] ?? "",
                                     style: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  );
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => StockDetailPage(
-                                      symbol: stock["symbol"],
-                                      exchange: stock["exchange"],
-                                      instrumentKey: stock["instrument_key"],
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                );
-                              },
+                                  subtitle: Text(
+                                    stock["name"] ?? "",
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                  trailing: FutureBuilder<double>(
+                                    future: ApiService.getLTP(stock["symbol"]),
+                                    builder: (_, snap) {
+                                      if (!snap.hasData) {
+                                        return const Text(
+                                          "--",
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                          ),
+                                        );
+                                      }
+
+                                      stock["ltp"] = snap.data!;
+
+                                      return Text(
+                                        "₹${snap.data!.toStringAsFixed(2)}",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => StockDetailPage(
+                                          symbol: stock["symbol"],
+                                          exchange: stock["exchange"],
+                                          instrumentKey:
+                                              stock["instrument_key"],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                           );
                         },
                       ),
-              ),
-            ],
-          );
-        },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlowCircle(Color color) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
       ),
     );
   }

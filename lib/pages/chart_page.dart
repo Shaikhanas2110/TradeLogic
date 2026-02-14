@@ -135,7 +135,7 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
     final percentChange = ((current - firstPrice) / firstPrice * 100);
 
     return Scaffold(
-      backgroundColor: Color(0xFFF3F4F6),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
@@ -174,7 +174,7 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
                         dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: Colors.greenAccent.withOpacity(0.18),
+                          color: Colors.indigo.withOpacity(0.18),
                         ),
                       ),
                     ],
