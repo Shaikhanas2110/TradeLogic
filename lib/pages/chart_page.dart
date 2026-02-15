@@ -240,3 +240,170 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
     );
   }
 }
+
+// import 'package:flutter/material.dart';
+// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
+// class TradingViewPriceChart extends StatefulWidget {
+//   final String symbol; // e.g. "NSE:RELIANCE", "NSE:NIFTY", "NASDAQ:AAPL"
+//   final String instrumentKey; // kept for compatibility, but not used here
+
+//   const TradingViewPriceChart({
+//     super.key,
+//     required this.symbol,
+//     required this.instrumentKey,
+//   });
+
+//   @override
+//   State<TradingViewPriceChart> createState() => _TradingViewPriceChartState();
+// }
+
+// class _TradingViewPriceChartState extends State<TradingViewPriceChart> {
+//   InAppWebViewController? webViewController;
+
+//   String get _htmlString =>
+//       '''
+// <!DOCTYPE html>
+// <html>
+// <head>
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <style>
+//     body { margin:0; padding:0; overflow:hidden; background:#000; }
+//     #tv_chart_container { height:100%; width:100%; }
+//   </style>
+// </head>
+// <body>
+//   <!-- TradingView Widget BEGIN -->
+//   <div class="tradingview-widget-container" id="tv_chart_container">
+//     <div class="tradingview-widget-container__widget"></div>
+//     <div class="tradingview-widget-copyright">
+//       <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+//         <span class="blue-text">Track all markets on TradingView</span>
+//       </a>
+//     </div>
+//   </div>
+//   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+//   {
+//     autosize: true,
+//     symbol: "${widget.symbol}",
+//     interval: "5",
+//     timezone: "Asia/Kolkata",
+//     theme: "dark",
+//     style: "1",
+//     locale: "en",
+//     toolbar_bg: "#000000",
+//     enable_publishing: false,
+//     hide_top_toolbar: false,
+//     hide_legend: false,
+//     hide_side_toolbar: false,
+//     allow_symbol_change: true,
+//     save_image: false,
+//     calendar: false,
+//     studies: [
+//       "MACD@tv-basicstudies",
+//       "RSI@tv-basicstudies",
+//       "Stochastic@tv-basicstudies"
+//     ],
+//     support_host: "https://www.tradingview.com"
+//   }
+//   </script>
+//   <!-- TradingView Widget END -->
+// </body>
+// </html>
+//   ''';
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: Colors.black,
+//       body: SafeArea(
+//         child: Column(
+//           children: [
+//             Expanded(
+//               child: InAppWebView(
+//                 initialData: InAppWebViewInitialData(
+//                   data: _htmlString,
+//                   encoding: 'utf-8',
+//                   mimeType: 'text/html',
+//                 ),
+//                 initialOptions: InAppWebViewGroupOptions(
+//                   crossPlatform: InAppWebViewOptions(
+//                     javaScriptEnabled: true,
+//                     javaScriptCanOpenWindowsAutomatically: true,
+//                     useShouldOverrideUrlLoading: true,
+//                     mediaPlaybackRequiresUserGesture: false,
+//                   ),
+//                   android: AndroidInAppWebViewOptions(
+//                     useHybridComposition: true,
+//                     allowContentAccess: true,
+//                     builtInZoomControls: true,
+//                     displayZoomControls: false,
+//                   ),
+//                   ios: IOSInAppWebViewOptions(
+//                     allowsInlineMediaPlayback: true,
+//                     allowsBackForwardNavigationGestures: true,
+//                   ),
+//                 ),
+//                 onWebViewCreated: (controller) {
+//                   webViewController = controller;
+//                 },
+//                 onLoadStart: (controller, url) {
+//                   debugPrint('Started loading: $url');
+//                 },
+//                 onLoadStop: (controller, url) {
+//                   debugPrint('Finished loading: $url');
+//                 },
+//                 onConsoleMessage: (controller, consoleMessage) {
+//                   debugPrint('Console → ${consoleMessage.message}');
+//                 },
+//                 onLoadError: (controller, url, code, message) {
+//                   debugPrint('Load error $code: $message');
+//                 },
+//               ),
+//             ),
+
+//             // Buy/Sell buttons
+//             Container(
+//               padding: const EdgeInsets.all(12),
+//               color: Colors.grey[900],
+//               child: Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//                 children: [
+//                   ElevatedButton.icon(
+//                     onPressed: () {
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         const SnackBar(content: Text('Buy order triggered')),
+//                       );
+//                     },
+//                     icon: const Icon(Icons.arrow_upward, color: Colors.white),
+//                     label: const Text('BUY'),
+//                     style: ElevatedButton.styleFrom(
+//                       backgroundColor: Colors.green[700],
+//                     ),
+//                   ),
+//                   ElevatedButton.icon(
+//                     onPressed: () {
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         const SnackBar(content: Text('Sell order triggered')),
+//                       );
+//                     },
+//                     icon: const Icon(Icons.arrow_downward, color: Colors.white),
+//                     label: const Text('SELL'),
+//                     style: ElevatedButton.styleFrom(
+//                       backgroundColor: Colors.red[700],
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   void dispose() {
+//     super.dispose();
+//   }
+// }
