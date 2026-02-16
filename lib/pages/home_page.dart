@@ -1,8 +1,74 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:async';
+import '../services/api_service.dart'; // your ApiService with getLTP
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  // List of symbols you want to track
+  final List<Map<String, dynamic>> trackedSymbols = [
+    {"symbol": "NIFTY", "name": "NIFTY 50", "type": "index"},
+    {"symbol": "BANKNIFTY", "name": "BANK NIFTY", "type": "index"},
+    {"symbol": "TATSILV", "name": "TATASILV", "type": "stock"},
+    {"symbol": "ADANIGREEN", "name": "ADANIGREEN", "type": "stock"},
+    {"symbol": "RELIANCE", "name": "RELIANCE", "type": "stock"},
+    {"symbol": "TCS", "name": "TCS", "type": "stock"},
+    {"symbol": "HINDCOPPER", "name": "HINDCOPPER", "type": "stock"},
+  ];
+
+  // Store fetched data: symbol → {price, change}
+  Map<String, Map<String, dynamic>> marketData = {};
+
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMarketData();
+  }
+
+  Map<String, double> previousPrices = {};
+
+  Future<void> _fetchMarketData() async {
+    setState(() => isLoading = true);
+
+    for (var item in trackedSymbols) {
+      final symbol = item["symbol"] as String;
+
+      try {
+        final currentPrice = await ApiService.getLTP(symbol);
+
+        double changePercent = 0.0;
+
+        // Calculate real change if we have previous price
+        if (previousPrices.containsKey(symbol)) {
+          final prev = previousPrices[symbol]!;
+          if (prev > 0) {
+            changePercent = ((currentPrice - prev) / prev) * 100;
+          }
+        }
+
+        // Update previous price for next time
+        previousPrices[symbol] = currentPrice;
+
+        marketData[symbol] = {
+          "price": currentPrice.toStringAsFixed(2),
+          "change": changePercent,
+        };
+      } catch (e) {
+        debugPrint("Failed to fetch $symbol: $e");
+        marketData[symbol] = {"price": "—", "change": 0.0};
+      }
+    }
+
+    setState(() => isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,14 +92,12 @@ class HomePage extends StatelessWidget {
             ),
           ),
 
-          /// 🔵 GLOW TOP RIGHT
+          /// Glow effects (unchanged)
           Positioned(
             top: -120,
             right: -120,
             child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
           ),
-
-          /// 🔵 GLOW BOTTOM LEFT
           Positioned(
             bottom: -150,
             left: -150,
@@ -63,41 +127,124 @@ class HomePage extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.6,
-                    children: const [
-                      MarketCard(
-                        symbol: "BTC/USD",
-                        price: "\$64,231.50",
-                        change: 1.5,
-                      ),
-                      MarketCard(
-                        symbol: "NIFTY 50",
-                        price: "22,453.10",
-                        change: -0.2,
-                      ),
-                      MarketCard(
-                        symbol: "ETH/USD",
-                        price: "\$3,421.20",
-                        change: 3.2,
-                      ),
-                      MarketCard(
-                        symbol: "AAPL",
-                        price: "\$182.40",
-                        change: 0.8,
-                      ),
-                    ],
-                  ),
+                  isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.greenAccent,
+                          ),
+                        )
+                      : GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.6,
+                          children: trackedSymbols.map((item) {
+                            final symbol = item["symbol"] as String;
+                            final data =
+                                marketData[symbol] ??
+                                {"price": "—", "change": 0.0};
+
+                            return MarketCard(
+                              symbol: item["name"] as String,
+                              price: data["price"] as String,
+                              change: data["change"] as double,
+                            );
+                          }).toList(),
+                        ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Keep your MarketCard class (it's already good)
+class MarketCard extends StatelessWidget {
+  final String symbol;
+  final String price;
+  final double change;
+
+  const MarketCard({
+    super.key,
+    required this.symbol,
+    required this.price,
+    required this.change,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPositive = change >= 0;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    symbol,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    "${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%",
+                    style: TextStyle(
+                      color: isPositive ? Colors.greenAccent : Colors.redAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                price == "—" ? "—" : "₹$price",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Placeholder for mini chart (you can add later)
+              // Container(
+              //   height: 40,
+              //   decoration: BoxDecoration(
+              //     borderRadius: BorderRadius.circular(8),
+              //     gradient: LinearGradient(
+              //       begin: Alignment.bottomLeft,
+              //       end: Alignment.topRight,
+              //       colors: [
+              //         (isPositive ? Colors.green : Colors.red).withOpacity(
+              //           0.15,
+              //         ),
+              //         Colors.transparent,
+              //       ],
+              //     ),
+              //   ),
+              // ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -137,97 +284,6 @@ Widget summaryCard() {
       ),
     ),
   );
-}
-
-class MarketCard extends StatelessWidget {
-  final String symbol;
-  final String price;
-  final double change; // +ve or -ve
-
-  const MarketCard({
-    super.key,
-    required this.symbol,
-    required this.price,
-    required this.change,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isPositive = change >= 0;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// Symbol + % Change
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    symbol,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    "${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%",
-                    style: TextStyle(
-                      color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              /// Price
-              Text(
-                price,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              /// Chart Placeholder
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomLeft,
-                    end: Alignment.topRight,
-                    colors: [
-                      (isPositive ? Colors.green : Colors.red).withOpacity(
-                        0.15,
-                      ),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 Widget _buildGlowCircle(Color color) {
