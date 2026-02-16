@@ -98,7 +98,7 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
   Widget build(BuildContext context) {
     if (pricePoints.isEmpty) {
       return const Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.black,
         body: Center(
           child: Text(
             "No market data available.\n(Market hours: 9:00 - 15:30)",
