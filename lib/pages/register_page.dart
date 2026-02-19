@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/dashboard_page.dart';
 import 'package:tradelogic/pages/login_page.dart';
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -22,6 +23,18 @@ class _RegisterPageState extends State<RegisterPage> {
   void initState() {
     super.initState();
     _obscurePassword = true;
+  }
+
+  Future<void> registerUser(String email, String password) async {
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      print("REGISTER SUCCESS!!");
+    } catch (e) {
+      print(e);
+    }
   }
 
   @override
@@ -234,7 +247,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             /// CREATE ACCOUNT BUTTON
                             ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async{
                                 if (!_acceptedTerms) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -246,6 +259,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 }
 
                                 if (_formKey.currentState!.validate()) {
+                                  await registerUser(email, password);  
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(

@@ -1,8 +1,1 @@
-{
-  "database": {
-    "rules": "database.rules.json"
-  },
-  "auth": {
-    "providers": {}
-  }
-}
+{"database":{"rules":"database.rules.json"},"auth":{"providers":{}},"flutter":{"platforms":{"android":{"default":{"projectId":"tradelogic-b60f0","appId":"1:913360047516:android:f506c050e10a9da75c4c59","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tradelogic-b60f0","configurations":{"android":"1:913360047516:android:f506c050e10a9da75c4c59","ios":"1:913360047516:ios:59ddb37261e27e855c4c59","macos":"1:913360047516:ios:59ddb37261e27e855c4c59","web":"1:913360047516:web:a450f2577f7a7cbb5c4c59","windows":"1:913360047516:web:920e64adea9498c05c4c59"}}}}}}

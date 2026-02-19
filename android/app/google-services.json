@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "913360047516",
+    "firebase_url": "https://tradelogic-b60f0-default-rtdb.firebaseio.com",
+    "project_id": "tradelogic-b60f0",
+    "storage_bucket": "tradelogic-b60f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:913360047516:android:f506c050e10a9da75c4c59",
+        "android_client_info": {
+          "package_name": "com.example.tradelogic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_vsMWKfDN3w7hPnp4eshJ0YfEvA0870o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
