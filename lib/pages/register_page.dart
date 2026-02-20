@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/dashboard_page.dart';
 import 'package:tradelogic/pages/login_page.dart';
@@ -25,12 +26,26 @@ class _RegisterPageState extends State<RegisterPage> {
     _obscurePassword = true;
   }
 
-  Future<void> registerUser(String email, String password) async {
+  Future<void> registerUser(String email, String password, String name) async {
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email.trim(),
+            password: password.trim(),
+          );
+
+      final uid = userCredential.user!.uid;
+
+      await FirebaseDatabase.instance.ref().child("users").child(uid).set({
+        "username": name,
+        "email": email,
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DashboardPage()),
       );
+
       print("REGISTER SUCCESS!!");
     } catch (e) {
       print(e);
@@ -146,7 +161,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             _glassField(
                               label: "Email",
                               keyboard: TextInputType.emailAddress,
-                              onSaved: (value) => email = value!,
+                              onSaved: (value) {
+                                email = value!;
+                              },
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Email required';
@@ -202,9 +219,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                 if (value == null || value.isEmpty) {
                                   return 'Confirm password';
                                 }
-                                if (value != password) {
-                                  return 'Passwords do not match';
-                                }
+                                // if (value != password) {
+                                //   return 'Passwords do not match';
+                                // }
                                 return null;
                               },
                             ),
@@ -247,7 +264,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             /// CREATE ACCOUNT BUTTON
                             ElevatedButton(
-                              onPressed: () async{
+                              onPressed: () async {
                                 if (!_acceptedTerms) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -259,13 +276,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 }
 
                                 if (_formKey.currentState!.validate()) {
-                                  await registerUser(email, password);  
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => DashboardPage(),
-                                    ),
-                                  );
+                                  _formKey.currentState!.save();
+                                  await registerUser(email, password, fullName);
                                 }
                               },
                               style: ElevatedButton.styleFrom(
