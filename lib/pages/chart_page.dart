@@ -130,9 +130,9 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
     }
 
     final firstPrice = spots.first.y;
-    final current = currentPrice ?? spots.last.y;
+    // final current = currentPrice ?? spots.last.y;
 
-    final percentChange = ((current - firstPrice) / firstPrice * 100);
+    // final percentChange = ((current - firstPrice) / firstPrice * 100);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
