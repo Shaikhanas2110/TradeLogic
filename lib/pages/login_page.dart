@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/dashboard_page.dart';
 import 'package:tradelogic/pages/register_page.dart';
@@ -20,6 +21,43 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _obscurePassword = true;
+  }
+
+  Future<void> loginUser(BuildContext context) async {
+    _formKey.currentState!.save();
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Login successful")));
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DashboardPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = "Login Failed";
+
+      if (e.code == 'user-not-found') {
+        message = "User Not Found";
+      } else if (e.code == 'wrong-password') {
+        message = "Incorrect Password";
+      } else if (e.code == 'invalid-email') {
+        message = "Invalid Email";
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Something went wrong")));
+    }
   }
 
   @override
@@ -168,12 +206,7 @@ class _LoginPageState extends State<LoginPage> {
                             ElevatedButton(
                               onPressed: () {
                                 if (_formKey.currentState!.validate()) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => DashboardPage(),
-                                    ),
-                                  );
+                                  loginUser(context);
                                 }
                               },
                               style: ElevatedButton.styleFrom(
