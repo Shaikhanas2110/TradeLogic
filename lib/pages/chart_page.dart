@@ -1,62 +1,88 @@
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
-class SimplePriceChart extends StatefulWidget {
+class ChartPage extends StatefulWidget {
   final String symbol;
   final String instrumentKey;
 
-  const SimplePriceChart({
+  const ChartPage({
     super.key,
     required this.symbol,
     required this.instrumentKey,
   });
 
   @override
-  State<SimplePriceChart> createState() => _SimplePriceChartState();
+  State<ChartPage> createState() => _ChartPageState();
 }
 
-class _SimplePriceChartState extends State<SimplePriceChart> {
+class _ChartPageState extends State<ChartPage> {
+  // ────────────────────────────────────────────────
+  // Price data
+  // ────────────────────────────────────────────────
   List<Map<String, dynamic>> pricePoints = [];
-  Timer? _refreshTimer;
   double? currentPrice;
+
+  // ────────────────────────────────────────────────
+  // Lux Oscillator signals
+  // ────────────────────────────────────────────────
+  String currentSignal = 'neutral';
+  DateTime? lastSignalTime;
+  List<FlSpot> signalSpots = []; // for drawing arrows / markers on chart
+
+  Timer? _priceTimer;
+  Timer? _signalTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadMinuteData();
+    _startDataFetchers();
+  }
 
-    // Refresh every minute
-    _refreshTimer = Timer.periodic(
-      const Duration(minutes: 1),
+  void _startDataFetchers() {
+    // Price data every 60 seconds
+    _priceTimer = Timer.periodic(
+      const Duration(seconds: 60),
       (_) => _loadMinuteData(),
     );
+
+    // Signal check more frequently (every 30–45s)
+    _signalTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _fetchLuxSignal(),
+    );
+
+    // Initial loads
+    _loadMinuteData();
+    _fetchLuxSignal();
   }
 
   Future<void> _loadMinuteData() async {
     try {
-      final response = await http.get(
-        Uri.parse("http://127.0.0.1:4000/minute_data/${widget.instrumentKey}"),
+      final uri = Uri.parse(
+        "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
       );
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body) as List<dynamic>;
 
         if (data.isEmpty) return;
 
         List<Map<String, dynamic>> newPoints = [];
 
         for (var item in data) {
-          final timeStr = item["time"]; // "09:01"
-          final price = (item["price"] as num).toDouble();
+          final timeStr = item["time"] as String; // "09:01"
+          final price = (item["price"] as num?)?.toDouble() ?? 0.0;
 
           final now = DateTime.now();
-          final parts = timeStr.split(":");
+          final parts = timeStr.split(':');
+          if (parts.length != 2) continue;
 
-          final dt = DateTime(
+          final candleTime = DateTime(
             now.year,
             now.month,
             now.day,
@@ -64,180 +90,324 @@ class _SimplePriceChartState extends State<SimplePriceChart> {
             int.parse(parts[1]),
           );
 
-          newPoints.add({"t": dt.millisecondsSinceEpoch ~/ 1000, "p": price});
+          newPoints.add({
+            "timestamp": candleTime.millisecondsSinceEpoch ~/ 1000,
+            "price": price,
+          });
         }
 
-        setState(() {
-          pricePoints = newPoints;
-          currentPrice = newPoints.last["p"];
-        });
+        if (mounted) {
+          setState(() {
+            pricePoints = newPoints;
+            if (newPoints.isNotEmpty) {
+              currentPrice = newPoints.last["price"];
+            }
+          });
+        }
       }
     } catch (e) {
-      debugPrint("Minute load error: $e");
+      debugPrint("Minute data load error: $e");
     }
   }
 
-  List<FlSpot> _buildSpots() {
-    return pricePoints.map((point) {
-      return FlSpot((point["t"] as int).toDouble(), (point["p"] as double));
+  Future<void> _fetchLuxSignal() async {
+    try {
+      final uri = Uri.parse(
+        "http://127.0.0.1:4000/lux_signal/${widget.instrumentKey}",
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final newSignal = (data['signal'] ?? 'neutral') as String;
+        final signalsList =
+            (data['signals_list'] as List<dynamic>?)?.cast<String>() ?? [];
+
+        if (newSignal != currentSignal && newSignal != 'neutral') {
+          // New signal detected → show SnackBar + add marker
+          _showSignalSnackBar(newSignal, signalsList);
+
+          // Add visual marker on the latest candle
+          if (pricePoints.isNotEmpty) {
+            final latestTs = pricePoints.last["timestamp"] as int;
+            signalSpots.add(
+              FlSpot(latestTs.toDouble(), pricePoints.last["price"]),
+            );
+          }
+
+          if (mounted) {
+            setState(() {
+              currentSignal = newSignal;
+              lastSignalTime = DateTime.now();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Lux signal fetch error: $e");
+    }
+  }
+
+  void _showSignalSnackBar(String signal, List<String> details) {
+    Color bgColor = Colors.grey;
+    String message = "Signal: $signal";
+
+    if (signal.contains('strong_up') || signal.contains('reversal_strong_up')) {
+      bgColor = Colors.green.shade700;
+      message = "STRONG BUY — Reversal Up";
+    } else if (signal.contains('strong_down') ||
+        signal.contains('reversal_strong_down')) {
+      bgColor = Colors.red.shade700;
+      message = "STRONG SELL — Reversal Down";
+    } else if (signal.contains('cross_up') ||
+        signal.contains('hyper_cross_up')) {
+      bgColor = Colors.green.shade600;
+      message = "HyperWave Bullish Cross";
+    } else if (signal.contains('cross_down') ||
+        signal.contains('hyper_cross_down')) {
+      bgColor = Colors.orange.shade800;
+      message = "HyperWave Bearish Cross";
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: bgColor,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  List<FlSpot> _buildPriceSpots() {
+    return pricePoints.map((p) {
+      return FlSpot((p["timestamp"] as int).toDouble(), p["price"] as double);
+    }).toList();
+  }
+
+  List<ScatterSpot> _buildSignalMarkers() {
+    // You can customize shape, color, size per signal type later
+    return signalSpots.map((spot) {
+      return ScatterSpot(spot.x, spot.y);
     }).toList();
   }
 
   String _formatTime(double x) {
-    final date = DateTime.fromMillisecondsSinceEpoch(x.toInt() * 1000);
-    return DateFormat('HH:mm').format(date);
+    final dt = DateTime.fromMillisecondsSinceEpoch((x * 1000).toInt());
+    return DateFormat('HH:mm').format(dt);
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _priceTimer?.cancel();
+    _signalTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (pricePoints.isEmpty) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Text(
-            "No market data available.\n(Market hours: 9:00 - 15:30)",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text(
+                "Loading market data...\n(Market hours: 9:00 – 15:30 IST)",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    final spots = _buildSpots();
-
-    if (spots.isEmpty) return const SizedBox();
+    final spots = _buildPriceSpots();
+    if (spots.isEmpty) return const SizedBox.shrink();
 
     final minX = spots.first.x;
     final maxX = spots.last.x;
 
     final prices = spots.map((s) => s.y).toList();
-
     double minY = prices.reduce((a, b) => a < b ? a : b);
     double maxY = prices.reduce((a, b) => a > b ? a : b);
 
-    minY = minY * 0.98;
-    maxY = maxY * 1.02;
-
-    if (!minY.isFinite || !maxY.isFinite) {
-      minY = 0;
-      maxY = 1;
-    }
+    minY *= 0.98;
+    maxY *= 1.02;
 
     final firstPrice = spots.first.y;
-    // final current = currentPrice ?? spots.last.y;
-
-    // final percentChange = ((current - firstPrice) / firstPrice * 100);
+    final lastPrice = spots.last.y;
+    final percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0.0),
-                child: LineChart(
-                  LineChartData(
-                    minX: minX,
-                    maxX: maxX,
-                    minY: minY,
-                    maxY: maxY,
-                    backgroundColor: Colors.black,
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      drawHorizontalLine: true,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: Colors.grey.withOpacity(0.15),
-                        strokeWidth: 1,
-                      ),
-                      getDrawingVerticalLine: (value) => FlLine(
-                        color: Colors.grey.withOpacity(0.15),
-                        strokeWidth: 1,
+      backgroundColor: Colors.black,
+      // appBar: AppBar(
+      //   title: Text(
+      //     "${widget.symbol} • ${currentPrice?.toStringAsFixed(2) ?? '—'}",
+      //     style: const TextStyle(fontWeight: FontWeight.w600),
+      //   ),
+      //   backgroundColor: Colors.grey.shade900,
+      //   actions: [
+      //     Padding(
+      //       padding: const EdgeInsets.only(right: 16),
+      //       child: Text(
+      //         percentChange >= 0
+      //             ? "+${percentChange.toStringAsFixed(2)}%"
+      //             : percentChange.toStringAsFixed(2) + "%",
+      //         style: TextStyle(
+      //           color: percentChange >= 0
+      //               ? Colors.greenAccent
+      //               : Colors.redAccent,
+      //           fontWeight: FontWeight.bold,
+      //         ),
+      //       ),
+      //     ),
+      //   ],
+      // ),
+      body: Column(
+        children: [
+          // Signal status bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            color: currentSignal.contains('strong_up')
+                ? Colors.green.shade800
+                : currentSignal.contains('strong_down')
+                ? Colors.red.shade800
+                : currentSignal.contains('cross_up')
+                ? Colors.green.shade700
+                : currentSignal.contains('cross_down')
+                ? Colors.orange.shade800
+                : Colors.grey.shade800,
+            child: Text(
+              "Current Signal: ${currentSignal.toUpperCase()} ${lastSignalTime != null ? '• ' + _formatRelativeTime(lastSignalTime!) : ''}",
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: LineChart(
+                LineChartData(
+                  minX: minX,
+                  maxX: maxX,
+                  minY: minY,
+                  maxY: maxY,
+                  backgroundColor: Colors.black,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: true,
+                    drawHorizontalLine: true,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Colors.grey.withOpacity(0.12),
+                      strokeWidth: 1,
+                    ),
+                    getDrawingVerticalLine: (_) => FlLine(
+                      color: Colors.grey.withOpacity(0.12),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  titlesData: const FlTitlesData(show: false),
+                  borderData: FlBorderData(show: false),
+
+                  // ─── This is the important part for signal markers ───
+                  extraLinesData: ExtraLinesData(
+                    verticalLines: signalSpots.map((spot) {
+                      final isBullish =
+                          currentSignal.contains('up') ||
+                          currentSignal.contains('bull') ||
+                          currentSignal.contains('buy');
+                      return VerticalLine(
+                        x: spot.x,
+                        color: isBullish
+                            ? Colors.greenAccent.withOpacity(0.8)
+                            : Colors.redAccent.withOpacity(0.8),
+                        strokeWidth: 3,
+                        dashArray: [5, 3],
+                        label: VerticalLineLabel(
+                          show: true,
+                          alignment: isBullish
+                              ? Alignment.topCenter
+                              : Alignment.bottomCenter,
+                          labelResolver: (_) => isBullish ? '↑' : '↓',
+                        ),
+
+                      );
+                    }).toList(),
+                  ),
+
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      curveSmoothness: 0.15,
+                      color: Colors.cyanAccent,
+                      barWidth: 2.2,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.cyan.withOpacity(0.14),
                       ),
                     ),
-                    titlesData: const FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spots,
-                        isCurved: true,
-                        curveSmoothness: 0.1,
-                        color: Colors.greenAccent,
-                        barWidth: 2,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: Colors.indigo.withOpacity(0.18),
-                        ),
-                      ),
-                    ],
-                    lineTouchData: LineTouchData(
-                      enabled: true,
-                      handleBuiltInTouches: true,
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipColor: (touchedSpot) =>
-                            Colors.black.withOpacity(0.75),
-                        tooltipRoundedRadius: 12,
-                        tooltipPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        getTooltipItems: (touchedSpots) {
-                          final spot = touchedSpots.first;
-                          final price = spot.y.toStringAsFixed(2);
-                          final time = _formatTime(spot.x);
-                          final percent =
-                              ((spot.y - firstPrice) / firstPrice * 100)
-                                  .toStringAsFixed(2);
+                  ],
 
-                          return [
-                            LineTooltipItem(
-                              '₹$price  (${percent.startsWith('-') ? '' : '+'}$percent%)\n$time',
-                              const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ];
-                        },
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    handleBuiltInTouches: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      tooltipRoundedRadius: 12,
+                      tooltipPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      getTouchedSpotIndicator: (barData, indicators) {
-                        return indicators.map((index) {
-                          return TouchedSpotIndicatorData(
-                            FlLine(
-                              color: Colors.white.withOpacity(0.5),
-                              strokeWidth: 1.5,
-                            ),
-                            FlDotData(
-                              show: true,
-                              getDotPainter: (spot, percent, bar, idx) =>
-                                  FlDotCirclePainter(
-                                    radius: 7,
-                                    color: Colors.greenAccent,
-                                    strokeWidth: 3,
-                                    strokeColor: Colors.black,
-                                  ),
-                            ),
-                          );
-                        }).toList();
+                      getTooltipItems: (touchedSpots) {
+                        final spot = touchedSpots.first;
+                        final price = spot.y.toStringAsFixed(2);
+                        final time = _formatTime(spot.x);
+                        final pct = ((spot.y - firstPrice) / firstPrice * 100)
+                            .toStringAsFixed(2);
+
+                        return [
+                          LineTooltipItem(
+                            '₹$price   ${pct.startsWith('-') ? '' : '+'}$pct%\n$time',
+                            const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                        ];
                       },
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  String _formatRelativeTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return "just now";
+    if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
+    if (diff.inHours < 24) return "${diff.inHours}h ago";
+    return "${diff.inDays}d ago";
   }
 }
 

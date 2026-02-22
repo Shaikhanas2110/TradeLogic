@@ -134,7 +134,7 @@ class _StockDetailPageState extends State<StockDetailPage> {
 
                 /// CHART CARD (Glass Style)
                 Expanded(
-                  child: SimplePriceChart(
+                  child: ChartPage(
                     symbol: widget.symbol,
                     instrumentKey: widget.instrumentKey,
                   ),
