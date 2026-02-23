@@ -248,34 +248,12 @@ class _ChartPageState extends State<ChartPage> {
     maxY *= 1.02;
 
     final firstPrice = spots.first.y;
-    final lastPrice = spots.last.y;
-    final percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+    // final lastPrice = spots.last.y;
+    // final percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // appBar: AppBar(
-      //   title: Text(
-      //     "${widget.symbol} • ${currentPrice?.toStringAsFixed(2) ?? '—'}",
-      //     style: const TextStyle(fontWeight: FontWeight.w600),
-      //   ),
-      //   backgroundColor: Colors.grey.shade900,
-      //   actions: [
-      //     Padding(
-      //       padding: const EdgeInsets.only(right: 16),
-      //       child: Text(
-      //         percentChange >= 0
-      //             ? "+${percentChange.toStringAsFixed(2)}%"
-      //             : percentChange.toStringAsFixed(2) + "%",
-      //         style: TextStyle(
-      //           color: percentChange >= 0
-      //               ? Colors.greenAccent
-      //               : Colors.redAccent,
-      //           fontWeight: FontWeight.bold,
-      //         ),
-      //       ),
-      //     ),
-      //   ],
-      // ),
+
       body: Column(
         children: [
           // Signal status bar
@@ -348,7 +326,6 @@ class _ChartPageState extends State<ChartPage> {
                               : Alignment.bottomCenter,
                           labelResolver: (_) => isBullish ? '↑' : '↓',
                         ),
-
                       );
                     }).toList(),
                   ),
