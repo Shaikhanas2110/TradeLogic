@@ -19,7 +19,6 @@ class ChartPage extends StatefulWidget {
   State<ChartPage> createState() => _ChartPageState();
 }
 
-/// ⭐ Model to store signal + position
 class SignalPoint {
   final double x;
   final double y;
@@ -118,47 +117,6 @@ class _ChartPageState extends State<ChartPage> {
       debugPrint("Minute data load error: $e");
     }
   }
-
-  /// ⭐ Signal fetch with DOT creation
-  // Future<void> _fetchLuxSignal() async {
-  //   try {
-  //     final uri = Uri.parse(
-  //       "http://127.0.0.1:4000/lux_signal/${widget.instrumentKey}",
-  //     );
-  //     final response = await http.get(uri);
-
-  //     if (response.statusCode == 200) {
-  //       final data = jsonDecode(response.body);
-  //       final newSignal = (data['signal'] ?? 'neutral') as String;
-
-  //       /// Only when signal changes
-  //       if (newSignal != currentSignal) {
-  //         if (pricePoints.isNotEmpty) {
-  //           final latest = pricePoints.last;
-
-  //           signalPoints.add(
-  //             SignalPoint(
-  //               (latest["timestamp"] as int).toDouble(),
-  //               latest["price"],
-  //               newSignal,
-  //             ),
-  //           );
-  //         }
-
-  //         if (mounted) {
-  //           setState(() {
-  //             currentSignal = newSignal;
-  //             lastSignalTime = DateTime.now();
-  //           });
-  //         }
-
-  //         _showSignalSnackBar(newSignal, []);
-  //       }
-  //     }
-  //   } catch (e) {
-  //     debugPrint("Lux signal fetch error: $e");
-  //   }
-  // }
 
   Future<void> _fetchLuxSignal() async {
     try {
