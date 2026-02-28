@@ -23,74 +23,98 @@ class SignalPoint {
   final double x;
   final double y;
   final String signal;
-
   SignalPoint(this.x, this.y, this.signal);
 }
 
 class _ChartPageState extends State<ChartPage> {
+  // Data State
   List<Map<String, dynamic>> pricePoints = [];
-  double? currentPrice;
-
-  String currentSignal = 'neutral';
-  DateTime? lastSignalTime;
-
-  /// ⭐ NEW list
   List<SignalPoint> signalPoints = [];
 
-  Timer? _priceTimer;
-  Timer? _signalTimer;
+  // Strategy State
+  List<String> availableStrategies = [];
+  String selectedStrategy = "RSI Fibonacci";
+  String currentSignal = "⚪ HOLD";
+
+  Timer? _dataTimer;
+  Timer? _strategyTimer;
 
   @override
   void initState() {
     super.initState();
-    _startDataFetchers();
+    _fetchAvailableStrategies();
+    _startTimers();
+    _fetchMinuteData(); // Initial load
+    _fetchStrategySignal(); // Initial load
   }
 
-  void _startDataFetchers() {
-    _priceTimer = Timer.periodic(
+  void _startTimers() {
+    // Fetch price every 60s
+    _dataTimer = Timer.periodic(
       const Duration(seconds: 60),
-      (_) => _loadMinuteData(),
+      (_) => _fetchMinuteData(),
     );
-
-    _signalTimer = Timer.periodic(
+    // Fetch strategy signal every 45s
+    _strategyTimer = Timer.periodic(
       const Duration(seconds: 45),
-      (_) => _fetchLuxSignal(),
+      (_) => _fetchStrategySignal(),
     );
-
-    _loadMinuteData();
-    _fetchLuxSignal();
   }
 
-  Future<void> _loadMinuteData() async {
+  @override
+  void dispose() {
+    _dataTimer?.cancel();
+    _strategyTimer?.cancel();
+    super.dispose();
+  }
+
+  // --- API CALLS ---
+
+  Future<void> _fetchAvailableStrategies() async {
     try {
+      final res = await http.get(Uri.parse("http://127.0.0.1:5000/strategies"));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          availableStrategies = List<String>.from(data["strategies"]);
+          if (availableStrategies.isNotEmpty) {
+            selectedStrategy = availableStrategies[0];
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Strategy Load Error: $e");
+    }
+  }
+
+  Future<void> _fetchMinuteData() async {
+    try {
+      // Assuming your Node/Python data server is on port 4000
       final uri = Uri.parse(
         "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
       );
-      final response = await http.get(uri);
+      final res = await http.get(uri);
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-
-        /// ⭐ Supports BOTH old + new API
-        final List<dynamic> data = decoded is List
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final List<dynamic> rawData = decoded is List
             ? decoded
             : (decoded["chart"] ?? []);
 
-        if (data.isEmpty) return;
+        if (rawData.isEmpty) return;
 
-        List<Map<String, dynamic>> newPoints = [];
+        List<Map<String, dynamic>> tempPoints = [];
 
-        for (var item in data) {
-          final timeStr = item["time"] as String?;
-          final price = (item["price"] as num?)?.toDouble();
+        for (var item in rawData) {
+          final timeStr = item["time"];
+          final price = item["price"];
 
           if (timeStr == null || price == null) continue;
 
+          // Parse HH:mm to Timestamp
           final now = DateTime.now();
-          final parts = timeStr.split(':');
-          if (parts.length != 2) continue;
-
-          final candleTime = DateTime(
+          final parts = timeStr.toString().split(':');
+          final dt = DateTime(
             now.year,
             now.month,
             now.day,
@@ -98,129 +122,111 @@ class _ChartPageState extends State<ChartPage> {
             int.parse(parts[1]),
           );
 
-          newPoints.add({
-            "timestamp": candleTime.millisecondsSinceEpoch ~/ 1000,
-            "price": price,
+          tempPoints.add({
+            "timestamp": dt.millisecondsSinceEpoch / 1000.0, // Seconds
+            "price": (price as num).toDouble(),
           });
         }
 
         if (mounted) {
           setState(() {
-            pricePoints = newPoints;
-            if (newPoints.isNotEmpty) {
-              currentPrice = newPoints.last["price"];
-            }
+            pricePoints = tempPoints;
           });
         }
       }
     } catch (e) {
-      debugPrint("Minute data load error: $e");
+      debugPrint("Data Fetch Error: $e");
     }
   }
 
-  Future<void> _fetchLuxSignal() async {
+  Future<void> _fetchStrategySignal() async {
+    if (pricePoints.isEmpty) return;
+
     try {
-      final uri = Uri.parse(
-        "http://127.0.0.1:4000/lux_signal/${widget.instrumentKey}",
+      final uri = Uri.parse("http://127.0.0.1:5000/analyze");
+      final body = jsonEncode({
+        "symbol": widget.symbol,
+        "exchange": "NSE",
+        "strategy": selectedStrategy,
+        "params": {"sensitivity": "Medium"},
+      });
+
+      final res = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: body,
       );
-      final response = await http.get(uri);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newSignal = (data['signal'] ?? 'neutral') as String;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final newSignal = data["signal"];
+        final reason = data["reason"];
+        final confidence = data["confidence"];
 
-        /// ⭐ ALWAYS ADD DOT (every API fetch)
-        if (pricePoints.isNotEmpty) {
-          final latest = pricePoints.last;
+        // Add dot to chart
+        final lastPoint = pricePoints.last;
+        final newDot = SignalPoint(
+          lastPoint["timestamp"],
+          lastPoint["price"],
+          newSignal,
+        );
 
-          signalPoints.add(
-            SignalPoint(
-              (latest["timestamp"] as int).toDouble(),
-              latest["price"],
-              newSignal,
-            ),
-          );
-        }
+        setState(() {
+          signalPoints.add(newDot);
 
-        /// ⭐ Only UI change logic depends on signal change
-        if (newSignal != currentSignal) {
-          if (mounted) {
-            setState(() {
-              currentSignal = newSignal;
-              lastSignalTime = DateTime.now();
-            });
+          // Only show notification if signal changed
+          if (newSignal != currentSignal) {
+            currentSignal = newSignal;
+            _showSnackBar(newSignal, reason, confidence);
           }
-
-          _showSignalSnackBar(newSignal, []);
-        } else {
-          /// still rebuild chart to show new dot
-          if (mounted) setState(() {});
-        }
+        });
       }
     } catch (e) {
-      debugPrint("Lux signal fetch error: $e");
+      debugPrint("Signal Fetch Error: $e");
     }
   }
 
-  void _showSignalSnackBar(String signal, List<String> details) {
-    if (!mounted) return;
-
+  void _showSnackBar(String signal, String reason, int conf) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(signal.toUpperCase()),
-        backgroundColor: _getSignalColor(signal),
+        content: Text("$signal: $reason ($conf%)"),
+        backgroundColor: _getColor(signal),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  /// ⭐ SIGNAL COLOR LOGIC
-  Color _getSignalColor(String signal) {
-    if (signal.contains('BUY') ||
-        signal.contains('up') ||
-        signal.contains('bull'))
-      return Colors.green;
-
-    if (signal.contains('SELL') ||
-        signal.contains('down') ||
-        signal.contains('bear'))
-      return Colors.red;
-
-    if (signal.contains('HOLD')) return Colors.yellow;
-
-    return Colors.grey;
+  Color _getColor(String signal) {
+    if (signal.contains("BUY") || signal.contains("🟢")) return Colors.green;
+    if (signal.contains("SELL") || signal.contains("🔴")) return Colors.red;
+    return Colors.amber;
   }
 
-  List<FlSpot> _buildPriceSpots() {
-    return pricePoints.map((p) {
-      return FlSpot((p["timestamp"] as int).toDouble(), p["price"] as double);
-    }).toList();
+  // --- CHART HELPERS ---
+
+  List<FlSpot> _getSpots() {
+    return pricePoints.map((e) => FlSpot(e["timestamp"], e["price"])).toList();
   }
 
-  /// ⭐ BUILD DOTS
-  List<ScatterSpot> _buildSignalDots() {
-    return signalPoints.map((s) {
-      return ScatterSpot(
-        s.x,
-        s.y,
-        dotPainter: FlDotCirclePainter(
-          radius: 6,
-          color: _getSignalColor(s.signal),
-          strokeWidth: 0,
-        ),
-      );
-    }).toList();
-  }
-
-  String _formatTime(double x) {
-    final dt = DateTime.fromMillisecondsSinceEpoch((x * 1000).toInt());
-    return DateFormat('HH:mm').format(dt);
-  }
-
-  @override
-  void dispose() {
-    _priceTimer?.cancel();
-    _signalTimer?.cancel();
-    super.dispose();
+  List<ScatterSpot> _getDots() {
+    // Show last 50 signals max
+    final dots = signalPoints.length > 50
+        ? signalPoints.sublist(signalPoints.length - 50)
+        : signalPoints;
+    return dots
+        .map(
+          (e) => ScatterSpot(
+            e.x,
+            e.y,
+            dotPainter: FlDotCirclePainter(
+              radius: 6,
+              color: _getColor(e.signal),
+              strokeWidth: 2,
+              strokeColor: Colors.white,
+            ),
+          ),
+        )
+        .toList();
   }
 
   @override
@@ -232,23 +238,51 @@ class _ChartPageState extends State<ChartPage> {
       );
     }
 
-    final spots = _buildPriceSpots();
-    final dots = _buildSignalDots();
+    final spots = _getSpots();
+    final dots = _getDots();
 
+    // Calculate Bounds
+    final prices = spots.map((e) => e.y).toList();
+    final minY = prices.reduce((a, b) => a < b ? a : b) * 0.9995;
+    final maxY = prices.reduce((a, b) => a > b ? a : b) * 1.0005;
     final minX = spots.first.x;
     final maxX = spots.last.x;
 
-    final prices = spots.map((e) => e.y).toList();
-    double minY = prices.reduce((a, b) => a < b ? a : b) * 0.98;
-    double maxY = prices.reduce((a, b) => a > b ? a : b) * 1.02;
-    final firstPrice = spots.first.y;
-    // final lastPrice = spots.last.y;
-    // final percentChange = ((lastPrice - firstPrice) / firstPrice) * 100;
-
     return Scaffold(
       backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text(widget.symbol),
+        backgroundColor: Colors.grey[900],
+        actions: [
+          // STRATEGY DROPDOWN
+          DropdownButton<String>(
+            dropdownColor: Colors.grey[800],
+            value: selectedStrategy,
+            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+            underline: Container(),
+            style: const TextStyle(color: Colors.white),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  selectedStrategy = newValue;
+                  signalPoints.clear(); // Clear old strategy dots
+                  currentSignal = "⚪ HOLD"; // Reset signal
+                });
+                _fetchStrategySignal(); // Trigger new check
+              }
+            },
+            items: availableStrategies.map<DropdownMenuItem<String>>((
+              String value,
+            ) {
+              return DropdownMenuItem<String>(value: value, child: Text(value));
+            }).toList(),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
       body: Stack(
         children: [
+          // 1. SIGNAL DOTS
           ScatterChart(
             ScatterChartData(
               minX: minX,
@@ -262,57 +296,72 @@ class _ChartPageState extends State<ChartPage> {
             ),
           ),
 
+          // 2. LINE CHART
           LineChart(
             LineChartData(
               minX: minX,
               maxX: maxX,
               minY: minY,
               maxY: maxY,
-              gridData: FlGridData(show: false),
+              gridData: const FlGridData(show: false),
               titlesData: const FlTitlesData(show: false),
               borderData: FlBorderData(show: false),
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,
                   isCurved: true,
-                  color: Colors.indigo,
+                  color: Colors.blueAccent,
                   barWidth: 2,
                   dotData: const FlDotData(show: false),
                   belowBarData: BarAreaData(
                     show: true,
-                    color: Colors.indigo.withOpacity(0.14),
+                    color: Colors.blueAccent.withOpacity(0.1),
                   ),
                 ),
               ],
               lineTouchData: LineTouchData(
-                enabled: true,
-                handleBuiltInTouches: true,
                 touchTooltipData: LineTouchTooltipData(
-                  tooltipRoundedRadius: 12,
-                  tooltipPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  getTooltipItems: (touchedSpots) {
-                    final spot = touchedSpots.first;
-                    final price = spot.y.toStringAsFixed(2);
-                    final time = _formatTime(spot.x);
-                    final pct = ((spot.y - firstPrice) / firstPrice * 100)
-                        .toStringAsFixed(2);
-
-                    return [
-                      LineTooltipItem(
-                        '₹$price   ${pct.startsWith('-') ? '' : '+'}$pct%\n$time',
-                        const TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ];
+                  // FIXED BRACKET ISSUE HERE
+                  tooltipRoundedRadius: 8,
+                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                    return touchedBarSpots.map((barSpot) {
+                      final time = DateTime.fromMillisecondsSinceEpoch(
+                        (barSpot.x * 1000).toInt(),
+                      );
+                      final timeStr = DateFormat('HH:mm').format(time);
+                      return LineTooltipItem(
+                        '₹${barSpot.y.toStringAsFixed(2)}\n$timeStr',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }).toList();
                   },
                 ),
               ),
             ),
           ),
 
-          /// ⭐ DOT OVERLAY
+          // 3. CURRENT SIGNAL BADGE
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getColor(currentSignal),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                currentSignal,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
