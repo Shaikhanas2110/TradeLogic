@@ -49,6 +49,9 @@ dependencies:
   firebase_database: ^11.3.10
   web_socket_channel: ^3.0.0
   webview_flutter: ^4.7.0 
+  webview_flutter_android: ^3.15.0  # Add this
+  webview_flutter_wkwebview: ^3.11.0 
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
