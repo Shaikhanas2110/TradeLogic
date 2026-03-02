@@ -251,10 +251,9 @@ class _ChartPageState extends State<ChartPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(widget.symbol),
-        backgroundColor: Colors.grey[900],
+        backgroundColor: Colors.black,
+        automaticallyImplyLeading: false,
         actions: [
-          // STRATEGY DROPDOWN
           DropdownButton<String>(
             dropdownColor: Colors.grey[800],
             value: selectedStrategy,
@@ -362,6 +361,8 @@ class _ChartPageState extends State<ChartPage> {
               ),
             ),
           ),
+
+          SizedBox(height: 10),
         ],
       ),
     );

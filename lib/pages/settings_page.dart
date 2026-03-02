@@ -16,8 +16,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   // Use 10.0.2.2 if testing on Android Emulator to reach your PC's localhost
-  // final String backendUrl = "http://10.0.2.2:5000";
-  final String backendUrl = "http://127.0.0.1:5000";
+  final String backendUrl = "http://10.254.136.143:5000";
+  // final String backendUrl = "http://127.0.0.1:5000";
+
   String _status = "Ready";
   final TextEditingController _manualTokenController = TextEditingController();
   // late final WebViewController _webViewController;
