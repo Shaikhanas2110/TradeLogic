@@ -1,10 +1,7 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-// import 'package:webview_flutter/webview_flutter.dart';
-// Import platform specific implementations to prevent the 'null instance' error
-// import 'package:webview_flutter_android/webview_flutter_android.dart';
-// import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -15,82 +12,33 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // Use 10.0.2.2 if testing on Android Emulator to reach your PC's localhost
   final String backendUrl = "http://10.254.136.143:5000";
-  // final String backendUrl = "http://127.0.0.1:5000";
 
-  String _status = "Ready";
+  String _status = "Generated";
   final TextEditingController _manualTokenController = TextEditingController();
-  // late final WebViewController _webViewController;
-
-  // Function to get the Login URL from Python and open WebView
-  // Future<void> _handleUpstoxLogin() async {
-  //   setState(() => _status = "Fetching login URL...");
-  //   try {
-  //     final response = await http.get(
-  //       Uri.parse("$backendUrl/upstox/login-url"),
-  //     );
-  //     if (response.statusCode == 200) {
-  //       final url = jsonDecode(response.body)['url'];
-  //       _webViewController.loadRequest(Uri.parse(url));
-
-  //       if (!mounted) return;
-
-  //       // Open the WebView in a Full Screen Dialog
-  //       showModalBottomSheet(
-  //         context: context,
-  //         isScrollControlled: true,
-  //         builder: (context) => SizedBox(
-  //           height: MediaQuery.of(context).size.height * 0.9,
-  //           child: WebViewWidget(controller: _webViewController),
-  //         ),
-  //       );
-  //     } else {
-  //       setState(() => _status = "Error: Backend not reachable");
-  //     }
-  //   } catch (e) {
-  //     setState(() => _status = "Error: Check if Python server is running");
-  //   }
-  // }
 
   Future<void> _handleUpstoxLogin() async {
-    print("Button Clicked!"); // Check if this shows in VS Code Console
     setState(() => _status = "Connecting to backend...");
 
     try {
-      // 1. Try to get the URL
       final response = await http
           .get(Uri.parse("$backendUrl/upstox/login-url"))
-          .timeout(const Duration(seconds: 5)); // Don't wait forever
-
-      print("Response Status: ${response.statusCode}");
-      print("Response Body: ${response.body}");
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final url = jsonDecode(response.body)['url'];
-
-        // 2. Open the URL
-        // If on WEB, use this:
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-
-        // If on MOBILE, use this:
-        // _webViewController.loadRequest(Uri.parse(url));
-        // showModalBottomSheet(
-        //   context: context,
-        //   builder: (context) => WebViewWidget(controller: _webViewController),
-        // );
       } else {
-        setState(() => _status = "Backend Error: ${response.statusCode}");
+        setState(() => _status = "Backend Error");
       }
     } catch (e) {
-      print("CONNECTION ERROR: $e"); // THIS WILL TELL YOU THE REAL PROBLEM
-      setState(() => _status = "Could not connect to Python. Is it running?");
+      setState(() => _status = "Connection Failed");
     }
   }
 
-  // Function to send the code to your Python backend
   Future<void> _sendCodeToPython(String code) async {
-    setState(() => _status = "Exchanging code for token...");
+    setState(() => _status = "Exchanging code...");
+
     try {
       final response = await http.post(
         Uri.parse("$backendUrl/upstox/exchange"),
@@ -101,64 +49,199 @@ class _SettingsPageState extends State<SettingsPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          _status = "Login Successful! Token Saved.";
+          _status = "Login Successful!";
           _manualTokenController.text = data['access_token'];
         });
       } else {
-        setState(() => _status = "Failed to exchange code");
+        setState(() => _status = "Exchange Failed");
       }
     } catch (e) {
-      setState(() => _status = "Error connecting to backend");
+      setState(() => _status = "Backend Error");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Trading Settings")),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Upstox Authentication",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              onPressed: _handleUpstoxLogin,
-              icon: const Icon(Icons.vpn_key),
-              label: const Text("Generate Access Token"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(15),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          /// 🔥 IDENTICAL BACKGROUND FROM HOMEPAGE
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF000000),
+                  Color(0xFF0F0F1A),
+                  Color(0xFF1A1A2E),
+                ],
               ),
             ),
-            const SizedBox(height: 30),
-            const Text("Manual Access Token Entry:"),
-            TextField(
-              controller: _manualTokenController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "Access Token will appear here or paste it",
+          ),
+
+          /// 🔵 SAME GLOW 1
+          Positioned(
+            top: -120,
+            right: -120,
+            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
+          ),
+
+          /// 🔵 SAME GLOW 2
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
+          ),
+
+          /// 📄 CONTENT
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "Trading Settings",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  _glassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Upstox Authentication",
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: _handleUpstoxLogin,
+                          icon: const Icon(Icons.vpn_key),
+                          label: const Text("Generate Access Token"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  _glassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Manual Token Entry",
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                        const SizedBox(height: 15),
+                        TextField(
+                          controller: _manualTokenController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: "Paste token here",
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        ElevatedButton(
+                          onPressed: () =>
+                              _sendCodeToPython(_manualTokenController.text),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text("Submit Token"),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  Center(
+                    child: Text(
+                      "Status: $_status",
+                      style: TextStyle(
+                        color:
+                            _status.contains("Fail") ||
+                                _status.contains("Error")
+                            ? Colors.redAccent
+                            : Colors.greenAccent,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () => _sendCodeToPython(_manualTokenController.text),
-              child: const Text("Submit Token Manually"),
-            ),
-            const Spacer(),
-            Text(
-              "Status: $_status",
-              style: TextStyle(
-                color: _status.contains("Error") ? Colors.red : Colors.green,
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// SAME GLASS CARD
+Widget _glassCard({required Widget child}) {
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(20),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: child,
+      ),
+    ),
+  );
+}
+
+/// SAME GLOW FUNCTION
+Widget _buildGlowCircle(Color color) {
+  return ClipOval(
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+      child: Container(
+        width: 300,
+        height: 300,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    ),
+  );
 }
