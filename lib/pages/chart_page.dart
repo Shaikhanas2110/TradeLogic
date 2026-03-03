@@ -27,11 +27,9 @@ class SignalPoint {
 }
 
 class _ChartPageState extends State<ChartPage> {
-  // Data State
   List<Map<String, dynamic>> pricePoints = [];
   List<SignalPoint> signalPoints = [];
 
-  // Strategy State
   List<String> availableStrategies = [];
   String selectedStrategy = "RSI Fibonacci";
   String currentSignal = "⚪ HOLD";
@@ -72,7 +70,8 @@ class _ChartPageState extends State<ChartPage> {
 
   Future<void> _fetchAvailableStrategies() async {
     try {
-      final res = await http.get(Uri.parse("http://127.0.0.1:5000/strategies"));
+      // final res = await http.get(Uri.parse("http://127.0.0.1:5000/strategies"));
+      final res = await http.get(Uri.parse("http://192.168.1.17:5000/strategies"));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
@@ -91,7 +90,8 @@ class _ChartPageState extends State<ChartPage> {
     try {
       // Assuming your Node/Python data server is on port 4000
       final uri = Uri.parse(
-        "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
+        // "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
+        "http://192.168.1.17:4000/minute_data/${widget.instrumentKey}",
       );
       final res = await http.get(uri);
 
@@ -143,7 +143,8 @@ class _ChartPageState extends State<ChartPage> {
     if (pricePoints.isEmpty) return;
 
     try {
-      final uri = Uri.parse("http://127.0.0.1:5000/analyze");
+      // final uri = Uri.parse("http://127.0.0.1:5000/analyze");
+      final uri = Uri.parse("http://192.168.1.17:5000/analyze");
       final body = jsonEncode({
         "symbol": widget.symbol,
         "exchange": "NSE",

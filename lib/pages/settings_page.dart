@@ -12,7 +12,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final String backendUrl = "http://10.254.136.143:5000";
+  final String backendUrl = "http://192.168.1.17:5000";
 
   String _status = "Generated";
   final TextEditingController _manualTokenController = TextEditingController();
