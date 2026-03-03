@@ -4,15 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:tradelogic/pages/strategy_page.dart';
 
 class ChartPage extends StatefulWidget {
   final String symbol;
   final String instrumentKey;
+  final String exchange;
 
   const ChartPage({
     super.key,
     required this.symbol,
     required this.instrumentKey,
+    required this.exchange,
   });
 
   @override
@@ -34,6 +37,12 @@ class _ChartPageState extends State<ChartPage> {
   String selectedStrategy = "RSI Fibonacci";
   String currentSignal = "⚪ HOLD";
 
+  final TextEditingController quantityController = TextEditingController(
+    text: "1",
+  );
+
+  bool isRunning = false;
+
   Timer? _dataTimer;
   Timer? _strategyTimer;
 
@@ -42,17 +51,16 @@ class _ChartPageState extends State<ChartPage> {
     super.initState();
     _fetchAvailableStrategies();
     _startTimers();
-    _fetchMinuteData(); // Initial load
-    _fetchStrategySignal(); // Initial load
+    _fetchMinuteData();
+    _fetchStrategySignal();
   }
 
   void _startTimers() {
-    // Fetch price every 60s
     _dataTimer = Timer.periodic(
       const Duration(seconds: 60),
       (_) => _fetchMinuteData(),
     );
-    // Fetch strategy signal every 45s
+
     _strategyTimer = Timer.periodic(
       const Duration(seconds: 45),
       (_) => _fetchStrategySignal(),
@@ -63,15 +71,17 @@ class _ChartPageState extends State<ChartPage> {
   void dispose() {
     _dataTimer?.cancel();
     _strategyTimer?.cancel();
+    quantityController.dispose();
     super.dispose();
   }
 
-  // --- API CALLS ---
+  // ---------------- API CALLS ----------------
 
   Future<void> _fetchAvailableStrategies() async {
     try {
-      // final res = await http.get(Uri.parse("http://127.0.0.1:5000/strategies"));
-      final res = await http.get(Uri.parse("http://192.168.1.17:5000/strategies"));
+      final res = await http.get(
+        Uri.parse("http://192.168.1.17:5000/strategies"),
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
@@ -88,11 +98,10 @@ class _ChartPageState extends State<ChartPage> {
 
   Future<void> _fetchMinuteData() async {
     try {
-      // Assuming your Node/Python data server is on port 4000
       final uri = Uri.parse(
-        // "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
         "http://192.168.1.17:4000/minute_data/${widget.instrumentKey}",
       );
+
       final res = await http.get(uri);
 
       if (res.statusCode == 200) {
@@ -111,9 +120,9 @@ class _ChartPageState extends State<ChartPage> {
 
           if (timeStr == null || price == null) continue;
 
-          // Parse HH:mm to Timestamp
           final now = DateTime.now();
           final parts = timeStr.toString().split(':');
+
           final dt = DateTime(
             now.year,
             now.month,
@@ -123,7 +132,7 @@ class _ChartPageState extends State<ChartPage> {
           );
 
           tempPoints.add({
-            "timestamp": dt.millisecondsSinceEpoch / 1000.0, // Seconds
+            "timestamp": dt.millisecondsSinceEpoch / 1000.0,
             "price": (price as num).toDouble(),
           });
         }
@@ -143,8 +152,8 @@ class _ChartPageState extends State<ChartPage> {
     if (pricePoints.isEmpty) return;
 
     try {
-      // final uri = Uri.parse("http://127.0.0.1:5000/analyze");
       final uri = Uri.parse("http://192.168.1.17:5000/analyze");
+
       final body = jsonEncode({
         "symbol": widget.symbol,
         "exchange": "NSE",
@@ -164,7 +173,6 @@ class _ChartPageState extends State<ChartPage> {
         final reason = data["reason"];
         final confidence = data["confidence"];
 
-        // Add dot to chart
         final lastPoint = pricePoints.last;
         final newDot = SignalPoint(
           lastPoint["timestamp"],
@@ -175,7 +183,6 @@ class _ChartPageState extends State<ChartPage> {
         setState(() {
           signalPoints.add(newDot);
 
-          // Only show notification if signal changed
           if (newSignal != currentSignal) {
             currentSignal = newSignal;
             _showSnackBar(newSignal, reason, confidence);
@@ -192,7 +199,6 @@ class _ChartPageState extends State<ChartPage> {
       SnackBar(
         content: Text("$signal: $reason ($conf%)"),
         backgroundColor: _getColor(signal),
-        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -203,17 +209,14 @@ class _ChartPageState extends State<ChartPage> {
     return Colors.amber;
   }
 
-  // --- CHART HELPERS ---
-
-  List<FlSpot> _getSpots() {
-    return pricePoints.map((e) => FlSpot(e["timestamp"], e["price"])).toList();
-  }
+  List<FlSpot> _getSpots() =>
+      pricePoints.map((e) => FlSpot(e["timestamp"], e["price"])).toList();
 
   List<ScatterSpot> _getDots() {
-    // Show last 50 signals max
     final dots = signalPoints.length > 50
         ? signalPoints.sublist(signalPoints.length - 50)
         : signalPoints;
+
     return dots
         .map(
           (e) => ScatterSpot(
@@ -233,138 +236,245 @@ class _ChartPageState extends State<ChartPage> {
   @override
   Widget build(BuildContext context) {
     if (pricePoints.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final spots = _getSpots();
     final dots = _getDots();
 
-    // Calculate Bounds
     final prices = spots.map((e) => e.y).toList();
     final minY = prices.reduce((a, b) => a < b ? a : b) * 0.9995;
     final maxY = prices.reduce((a, b) => a > b ? a : b) * 1.0005;
     final minX = spots.first.x;
     final maxX = spots.last.x;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        automaticallyImplyLeading: false,
-        actions: [
-          DropdownButton<String>(
-            dropdownColor: Colors.grey[800],
-            value: selectedStrategy,
-            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-            underline: Container(),
-            style: const TextStyle(color: Colors.white),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                setState(() {
-                  selectedStrategy = newValue;
-                  signalPoints.clear(); // Clear old strategy dots
-                  currentSignal = "⚪ HOLD"; // Reset signal
-                });
-                _fetchStrategySignal(); // Trigger new check
-              }
-            },
-            items: availableStrategies.map<DropdownMenuItem<String>>((
-              String value,
-            ) {
-              return DropdownMenuItem<String>(value: value, child: Text(value));
-            }).toList(),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // 1. SIGNAL DOTS
-          ScatterChart(
-            ScatterChartData(
-              minX: minX,
-              maxX: maxX,
-              minY: minY,
-              maxY: maxY,
-              scatterSpots: dots,
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              gridData: const FlGridData(show: false),
-            ),
-          ),
+    return Container(
+      color: Colors.transparent,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ---------------- CHART ----------------
+            SizedBox(
+              width: double.infinity, // 🔥 Forces full available width
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    fit: StackFit.expand, // 🔥 VERY IMPORTANT
+                    children: [
+                      ScatterChart(
+                        ScatterChartData(
+                          minX: minX,
+                          maxX: maxX,
+                          minY: minY,
+                          maxY: maxY,
+                          scatterSpots: dots,
+                          titlesData: const FlTitlesData(show: false),
+                          borderData: FlBorderData(show: false),
+                          gridData: const FlGridData(show: false),
+                        ),
+                      ),
 
-          // 2. LINE CHART
-          LineChart(
-            LineChartData(
-              minX: minX,
-              maxX: maxX,
-              minY: minY,
-              maxY: maxY,
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: Colors.blueAccent,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.blueAccent.withOpacity(0.1),
+                      LineChart(
+                        LineChartData(
+                          minX: minX,
+                          maxX: maxX,
+                          minY: minY,
+                          maxY: maxY,
+                          gridData: const FlGridData(show: false),
+                          titlesData: const FlTitlesData(show: false),
+                          borderData: FlBorderData(show: false),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: spots,
+                              isCurved: true,
+                              color: Colors.blueAccent,
+                              barWidth: 2,
+                              dotData: const FlDotData(show: false),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: Colors.blueAccent.withOpacity(0.1),
+                              ),
+                            ),
+                          ],
+                          lineTouchData: LineTouchData(
+                            handleBuiltInTouches: true,
+                            touchTooltipData: LineTouchTooltipData(
+                              tooltipRoundedRadius: 8,
+                              tooltipPadding: const EdgeInsets.all(8),
+                              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                                return touchedBarSpots.map((barSpot) {
+                                  final time =
+                                      DateTime.fromMillisecondsSinceEpoch(
+                                        (barSpot.x * 1000).toInt(),
+                                      );
+
+                                  final timeStr = DateFormat(
+                                    'HH:mm',
+                                  ).format(time);
+
+                                  return LineTooltipItem(
+                                    '₹${barSpot.y.toStringAsFixed(2)}\n$timeStr',
+                                    const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getColor(currentSignal),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            currentSignal,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ---------------- STRATEGY DROPDOWN ----------------
+            const Text("Strategy", style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 8),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[850],
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedStrategy,
+                  dropdownColor: Colors.grey[900],
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Colors.white,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  isExpanded: true,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        selectedStrategy = value;
+                        signalPoints.clear();
+                        currentSignal = "⚪ HOLD";
+                      });
+                      _fetchStrategySignal();
+                    }
+                  },
+                  items: availableStrategies
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ---------------- QUANTITY ----------------
+            const Text("Quantity", style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 8),
+
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[850],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ---------------- BUTTONS ----------------
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => isRunning = !isRunning);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isRunning ? Colors.red : Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      isRunning ? "Stop" : "Start",
+                      style: const TextStyle(fontSize: 16,color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StrategyPage(
+                            symbol: widget.symbol,
+                            exchange: widget.exchange,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      "Create Strategy",
+                      style: TextStyle(fontSize: 16,color: Colors.white),
+                    ),
                   ),
                 ),
               ],
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  // FIXED BRACKET ISSUE HERE
-                  tooltipRoundedRadius: 8,
-                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                    return touchedBarSpots.map((barSpot) {
-                      final time = DateTime.fromMillisecondsSinceEpoch(
-                        (barSpot.x * 1000).toInt(),
-                      );
-                      final timeStr = DateFormat('HH:mm').format(time);
-                      return LineTooltipItem(
-                        '₹${barSpot.y.toStringAsFixed(2)}\n$timeStr',
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
             ),
-          ),
 
-          // 3. CURRENT SIGNAL BADGE
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _getColor(currentSignal),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                currentSignal,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-
-          SizedBox(height: 10),
-        ],
+            const SizedBox(height: 30),
+          ],
+        ),
       ),
     );
   }

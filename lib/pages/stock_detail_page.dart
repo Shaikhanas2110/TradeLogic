@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tradelogic/pages/chart_page.dart';
-import 'package:tradelogic/pages/sell_strategy_page.dart';
 import '../services/api_service.dart';
-import 'strategy_page.dart';
 import 'dart:ui';
 
 class StockDetailPage extends StatefulWidget {
@@ -137,6 +135,7 @@ class _StockDetailPageState extends State<StockDetailPage> {
                   child: ChartPage(
                     symbol: widget.symbol,
                     instrumentKey: widget.instrumentKey,
+                    exchange: widget.exchange,
                   ),
                 ),
               ],
@@ -146,63 +145,63 @@ class _StockDetailPageState extends State<StockDetailPage> {
       ),
 
       /// BUTTON BAR
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StrategyPage(
-                      symbol: widget.symbol,
-                      exchange: widget.exchange,
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(18),
-                backgroundColor: Colors.indigo,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Create Strategy',
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
-            ),
-            
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SellStrategyPage(
-                      symbol: widget.symbol,
-                      exchange: widget.exchange,
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(18),
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Delete Strategy',
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
+      // bottomNavigationBar: Padding(
+      //   padding: const EdgeInsets.all(16),
+      //   child: Row(
+      //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      //     children: [
+      //       ElevatedButton(
+      //         onPressed: () {
+      //           Navigator.push(
+      //             context,
+      //             MaterialPageRoute(
+      //               builder: (_) => StrategyPage(
+      //                 symbol: widget.symbol,
+      //                 exchange: widget.exchange,
+      //               ),
+      //             ),
+      //           );
+      //         },
+      //         style: ElevatedButton.styleFrom(
+      //           padding: const EdgeInsets.all(18),
+      //           backgroundColor: Colors.indigo,
+      //           shape: RoundedRectangleBorder(
+      //             borderRadius: BorderRadius.circular(12),
+      //           ),
+      //         ),
+      //         child: const Text(
+      //           'Create Strategy',
+      //           style: TextStyle(fontSize: 18, color: Colors.white),
+      //         ),
+      //       ),
+
+      //       ElevatedButton(
+      //         onPressed: () {
+      //           Navigator.push(
+      //             context,
+      //             MaterialPageRoute(
+      //               builder: (_) => SellStrategyPage(
+      //                 symbol: widget.symbol,
+      //                 exchange: widget.exchange,
+      //               ),
+      //             ),
+      //           );
+      //         },
+      //         style: ElevatedButton.styleFrom(
+      //           padding: const EdgeInsets.all(18),
+      //           backgroundColor: Colors.red,
+      //           shape: RoundedRectangleBorder(
+      //             borderRadius: BorderRadius.circular(12),
+      //           ),
+      //         ),
+      //         child: const Text(
+      //           'Delete Strategy',
+      //           style: TextStyle(fontSize: 18, color: Colors.white),
+      //         ),
+      //       ),
+      //     ],
+      //   ),
+      // ),
     );
   }
 
