@@ -143,65 +143,6 @@ class _StockDetailPageState extends State<StockDetailPage> {
           ),
         ],
       ),
-
-      /// BUTTON BAR
-      // bottomNavigationBar: Padding(
-      //   padding: const EdgeInsets.all(16),
-      //   child: Row(
-      //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //     children: [
-      //       ElevatedButton(
-      //         onPressed: () {
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(
-      //               builder: (_) => StrategyPage(
-      //                 symbol: widget.symbol,
-      //                 exchange: widget.exchange,
-      //               ),
-      //             ),
-      //           );
-      //         },
-      //         style: ElevatedButton.styleFrom(
-      //           padding: const EdgeInsets.all(18),
-      //           backgroundColor: Colors.indigo,
-      //           shape: RoundedRectangleBorder(
-      //             borderRadius: BorderRadius.circular(12),
-      //           ),
-      //         ),
-      //         child: const Text(
-      //           'Create Strategy',
-      //           style: TextStyle(fontSize: 18, color: Colors.white),
-      //         ),
-      //       ),
-
-      //       ElevatedButton(
-      //         onPressed: () {
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(
-      //               builder: (_) => SellStrategyPage(
-      //                 symbol: widget.symbol,
-      //                 exchange: widget.exchange,
-      //               ),
-      //             ),
-      //           );
-      //         },
-      //         style: ElevatedButton.styleFrom(
-      //           padding: const EdgeInsets.all(18),
-      //           backgroundColor: Colors.red,
-      //           shape: RoundedRectangleBorder(
-      //             borderRadius: BorderRadius.circular(12),
-      //           ),
-      //         ),
-      //         child: const Text(
-      //           'Delete Strategy',
-      //           style: TextStyle(fontSize: 18, color: Colors.white),
-      //         ),
-      //       ),
-      //     ],
-      //   ),
-      // ),
     );
   }
 

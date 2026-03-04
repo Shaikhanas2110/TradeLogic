@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // static const String baseUrl = "http://127.0.0.1:4000";
-  static const String baseUrl = "http://192.168.1.17:4000";
+  static const String baseUrl = "http://127.0.0.1:4000";
+  // static const String baseUrl = "http://192.168.1.17:4000";
 
   static Future<List<dynamic>> getWatchlist() async {
     final res = await http.get(Uri.parse("$baseUrl/watchlist"));
@@ -105,5 +105,26 @@ class ApiService {
   static Future<List<dynamic>> getTradeLogs(String symbol) async {
     final res = await http.get(Uri.parse("$baseUrl/trade_logs/$symbol"));
     return jsonDecode(res.body);
+  }
+
+   static Future<Map> getAccountStatus() async {
+    // Return JSON from your Python endpoint: /account_status
+    // Example: {'cash_available': 95000.0, 'portfolio': [...]}
+    final response = await http.get(Uri.parse('${baseUrl}/account_status'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to load status');
+  }
+
+  // New Method 2: Trigger Buy Order
+  static Future<bool> placeBuyOrder(String symbol, int qty, double price) async {
+     // Returns true if successful (money was deducted)
+     final response = await http.post(
+       Uri.parse("$baseUrl/place_buy_order"),
+       headers: {"Content-Type": "application/json"},
+       body: jsonEncode({"symbol": symbol, "qty": qty, "price": price}),
+     );
+     return response.statusCode == 200;
   }
 }
