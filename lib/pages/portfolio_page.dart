@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:tradelogic/services/api_service.dart';
+import 'package:tradelogic/pages/sell_strategy_page.dart'; // Ensure this path is correct
 import 'dart:ui';
 
-class PortfolioPage extends StatelessWidget {
+class PortfolioPage extends StatefulWidget {
   const PortfolioPage({super.key});
+
+  @override
+  State<PortfolioPage> createState() => _PortfolioPageState();
+}
+
+class _PortfolioPageState extends State<PortfolioPage> {
+  // Key to force refresh the FutureBuilder
+  Key _refreshKey = UniqueKey();
+
+  void _refreshPortfolio() {
+    setState(() {
+      _refreshKey = UniqueKey();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +47,13 @@ class PortfolioPage extends StatelessWidget {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            onPressed: _refreshPortfolio,
+            icon: const Icon(Icons.refresh, color: Colors.white),
+          ),
+        ],
       ),
-
       body: Stack(
         children: [
           /// 🔥 DARK GRADIENT BACKGROUND
@@ -51,14 +71,12 @@ class PortfolioPage extends StatelessWidget {
             ),
           ),
 
-          /// 🔵 GLOW TOP RIGHT
           Positioned(
             top: -120,
             right: -120,
             child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
           ),
 
-          /// 🔵 GLOW BOTTOM LEFT
           Positioned(
             bottom: -150,
             left: -150,
@@ -70,9 +88,9 @@ class PortfolioPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 🔹 BODY
                 Expanded(
                   child: FutureBuilder<List<dynamic>>(
+                    key: _refreshKey, // Used to trigger reload
                     future: ApiService.getPortfolio(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -104,18 +122,19 @@ class PortfolioPage extends StatelessWidget {
                       final stocks = snapshot.data!;
 
                       return ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         itemCount: stocks.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 14),
                         itemBuilder: (context, i) {
                           final s = stocks[i];
-
                           final String symbol = s["symbol"] ?? "";
                           final int qty = (s["quantity"] ?? 0).toInt();
                           final double avg = (s["avg_price"] ?? 0).toDouble();
                           final double ltp = (s["ltp"] ?? 0).toDouble();
                           final double pnl = (s["pnl"] ?? 0).toDouble();
-
                           final bool isProfit = pnl >= 0;
 
                           return ClipRRect(
@@ -131,59 +150,109 @@ class PortfolioPage extends StatelessWidget {
                                     color: Colors.white.withOpacity(0.08),
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                child: Column(
                                   children: [
-                                    /// LEFT SIDE
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          symbol,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                        /// LEFT SIDE (Info)
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              symbol,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              "Qty: $qty  •  Avg: ₹${avg.toStringAsFixed(2)}",
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          "Qty: $qty  •  Avg: ₹${avg.toStringAsFixed(2)}",
-                                          style: const TextStyle(
-                                            color: Colors.white54,
-                                            fontSize: 13,
-                                          ),
+
+                                        /// RIGHT SIDE (Price/PnL)
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              "₹${ltp.toStringAsFixed(2)}",
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            Text(
+                                              "${isProfit ? "+" : ""}₹${pnl.toStringAsFixed(2)}",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: isProfit
+                                                    ? Colors.greenAccent
+                                                    : Colors.redAccent,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
+                                    const Divider(
+                                      color: Colors.white10,
+                                      height: 20,
+                                    ),
 
-                                    /// RIGHT SIDE
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          "₹${ltp.toStringAsFixed(2)}",
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                    /// SELL BUTTON
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: TextButton.icon(
+                                        onPressed: () async {
+                                          // Navigate to Sell Page
+                                          final bool? didSell =
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      SellPage(share: s),
+                                                ),
+                                              );
+                                          // If sell happened, refresh the list
+                                          if (didSell == true) {
+                                            _refreshPortfolio();
+                                          }
+                                        },
+                                        icon: const Icon(
+                                          Icons.shopping_cart_checkout,
+                                          size: 18,
+                                          color: Colors.orangeAccent,
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          "${isProfit ? "+" : ""}₹${pnl.toStringAsFixed(2)}",
+                                        label: const Text(
+                                          "SELL",
                                           style: TextStyle(
-                                            fontSize: 14,
+                                            color: Colors.orangeAccent,
                                             fontWeight: FontWeight.bold,
-                                            color: isProfit
-                                                ? Colors.greenAccent
-                                                : Colors.redAccent,
                                           ),
                                         ),
-                                      ],
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: Colors.orangeAccent
+                                              .withOpacity(0.1),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

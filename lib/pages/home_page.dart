@@ -1,4 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:tradelogic/pages/chart_page.dart';
+import 'package:tradelogic/pages/stock_detail_page.dart';
 import 'dart:ui';
 import '../services/api_service.dart'; // Ensure your API service handles GET endpoints
 
@@ -11,13 +15,55 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Map<String, dynamic>> trackedSymbols = [
-    {"symbol": "NIFTY", "name": "NIFTY 50", "type": "index"},
-    {"symbol": "BANKNIFTY", "name": "BANK NIFTY", "type": "index"},
-    {"symbol": "TATSILV", "name": "TATASILV", "type": "stock"},
-    {"symbol": "ADANIGREEN", "name": "ADANIGREEN", "type": "stock"},
-    {"symbol": "RELIANCE", "name": "RELIANCE", "type": "stock"},
-    {"symbol": "TCS", "name": "TCS", "type": "stock"},
-    {"symbol": "HINDCOPPER", "name": "HINDCOPPER", "type": "stock"},
+    {
+      "symbol": "NIFTY",
+      "name": "NIFTY 50",
+      "type": "index",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty 50",
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "name": "BANK NIFTY",
+      "type": "index",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty Bank",
+    },
+    {
+      "symbol": "TATSILV",
+      "name": "TATASILV",
+      "type": "stock",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty 50",
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "name": "ADANIGREEN",
+      "type": "stock",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty 50",
+    },
+    {
+      "symbol": "RELIANCE",
+      "name": "RELIANCE",
+      "type": "stock",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_EQ|INE002A01018",
+    },
+    {
+      "symbol": "TCS",
+      "name": "TCS",
+      "type": "stock",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty 50",
+    },
+    {
+      "symbol": "HINDCOPPER",
+      "name": "HINDCOPPER",
+      "type": "stock",
+      "exchange": "NSE_EQ",
+      "instrument_key": "NSE_INDEX|Nifty 50",
+    },
   ];
 
   Map<String, Map<String, dynamic>> marketData = {};
@@ -26,25 +72,24 @@ class _HomePageState extends State<HomePage> {
   double availableBalance = 100000.0; // Default initialization
   double totalNetWorth = 100000.0;
   List<dynamic> userPortfolio = [];
-
+  final user = FirebaseAuth.instance.currentUser;
+  String username = "Loading...";
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchMarketData();
-    _loadUserData(); // Load wallet and portfolio data
+    _loadUserData();
+    fetchUsername();
   }
 
-  // Fetch User Balance & Portfolio from Firebase/API
   Future<void> _loadUserData() async {
     setState(() {
       isLoading = true;
     });
 
     try {
-      // Replace '/account_status' with your actual backend route
-      // Or use your firebase firestore query method here
       final data = await ApiService.getAccountStatus();
 
       setState(() {
@@ -61,6 +106,25 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> fetchUsername() async {
+    if (user == null) return;
+
+    final ref = FirebaseDatabase.instance.ref().child("users").child(user!.uid);
+
+    final snapshot = await ref.child("username").get();
+    final snapshot_email = await ref.child("email").get();
+
+    if (snapshot.exists) {
+      setState(() {
+        username = snapshot.value.toString();
+      });
+    } else {
+      setState(() {
+        username = "User";
+      });
+    }
+  }
+
   Future<void> _fetchMarketData() async {
     setState(() => isLoading = true);
 
@@ -70,7 +134,7 @@ class _HomePageState extends State<HomePage> {
         final currentPrice = await ApiService.getLTP(symbol);
         marketData[symbol] = {
           "price": currentPrice.toStringAsFixed(2),
-          "change": 0.0, // Implement percentage change logic here if needed
+          "change": 0.0,
         };
       } catch (e) {
         debugPrint("Failed to fetch $symbol: $e");
@@ -181,10 +245,10 @@ class _HomePageState extends State<HomePage> {
                         // Find live price for comparison
                         final livePriceStr =
                             marketData[symbolName]?['price'] ?? "—";
-                        // ignore: unnecessary_cast
-                        final livePrice = (livePriceStr == "—"
+
+                        final livePrice = livePriceStr == "—"
                             ? 0.0
-                            : double.tryParse(livePriceStr) ?? 0.0) as double;
+                            : double.tryParse(livePriceStr) ?? 0.0;
 
                         return CardWidget(
                           symbol: symbolName,
@@ -228,6 +292,18 @@ class _HomePageState extends State<HomePage> {
                               symbol: item["name"] as String,
                               price: data["price"] as String,
                               change: data["change"] as double,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => StockDetailPage(
+                                      symbol: item["symbol"],
+                                      exchange: item["exchange"],
+                                      instrumentKey: item["instrument_key"],
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           }).toList(),
                         ),
@@ -239,9 +315,51 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-}
 
-// --- CUSTOM WIDGETS ---
+  Widget _glassAppBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const CircleAvatar(
+              radius: 22,
+              backgroundImage: AssetImage('images/logo.png'),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "GOOD MORNING",
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                Text(
+                  username.isNotEmpty ? username : "U",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            onPressed: () {},
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 Widget summaryCard(double balance, double netWorth) {
   return ClipRRect(
@@ -267,7 +385,7 @@ Widget summaryCard(double balance, double netWorth) {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "\$${balance.toStringAsFixed(2)}", // Format to local currency if needed
+                  "\₹${balance.toStringAsFixed(2)}", // Format to local currency if needed
                   style: const TextStyle(
                     color: Colors.greenAccent,
                     fontSize: 24,
@@ -286,7 +404,7 @@ Widget summaryCard(double balance, double netWorth) {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "\$${netWorth.toStringAsFixed(2)}",
+                  "\₹${netWorth.toStringAsFixed(2)}",
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -356,7 +474,7 @@ class CardWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    isProfit ? "+₹$profitLoss" : "-₹$profitLoss.abs()",
+                    isProfit ? "₹$profitLoss" : "₹$profitLoss",
                     style: TextStyle(
                       color: isProfit ? Colors.greenAccent : Colors.redAccent,
                       fontWeight: FontWeight.bold,
@@ -380,62 +498,69 @@ class MarketCard extends StatelessWidget {
   final String symbol;
   final String price;
   final double change;
+  final VoidCallback? onTap; // Add callback
 
   const MarketCard({
     super.key,
     required this.symbol,
     required this.price,
     required this.change,
+    this.onTap, // Optional tap handler
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isPositive = change >= 0;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    symbol,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      symbol,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  Text(
-                    "${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%",
-                    style: TextStyle(
-                      color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      "${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%",
+                      style: TextStyle(
+                        color: isPositive
+                            ? Colors.greenAccent
+                            : Colors.redAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                price == "—" ? "—" : "₹$price",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  price == "—" ? "—" : "₹$price",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -453,49 +578,5 @@ Widget _buildGlowCircle(Color color) {
         decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     ),
-  );
-}
-
-Widget _glassAppBar() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Row(
-        children: const [
-          CircleAvatar(
-            radius: 22,
-            backgroundImage: AssetImage('images/logo.png'),
-          ),
-          SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "GOOD MORNING",
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-              Text(
-                "Alex Rivers",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          shape: BoxShape.circle,
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.notifications_none, color: Colors.white),
-          onPressed: () {},
-        ),
-      ),
-    ],
   );
 }

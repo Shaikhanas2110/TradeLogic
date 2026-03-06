@@ -1,178 +1,150 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:ui';
 
-class SellStrategyPage extends StatelessWidget {
-  final String symbol;
-  final String exchange;
-  SellStrategyPage({required this.symbol, required this.exchange});
+class SellPage extends StatefulWidget {
+  final Map share;
+  const SellPage({super.key, required this.share});
 
-  final buyCtrl = TextEditingController();
-  final sellCtrl = TextEditingController();
-  final slCtrl = TextEditingController();
-  final qtyCtrl = TextEditingController();
+  @override
+  State<SellPage> createState() => _SellPageState();
+}
+
+class _SellPageState extends State<SellPage> {
+  final TextEditingController _qtyController = TextEditingController();
+  bool _isLoading = false;
+  final String backendUrl =
+      "http://127.0.0.1:4000"; // Update for your environment
+
+  Future<void> _handleSell() async {
+    final int? sellQty = int.tryParse(_qtyController.text);
+    final int available = widget.share['quantity'];
+
+    if (sellQty == null || sellQty <= 0 || sellQty > available) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Enter a valid quantity (Max: $available)")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse("$backendUrl/sell_order"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "symbol": widget.share['symbol'],
+          "qty": sellQty,
+          "sell_price": widget
+              .share['avg_price'], // Using avg price as current for simulation
+        }),
+      );
+
+      final result = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && result['success'] == true) {
+        Navigator.pop(context, true); // Go back and tell Portfolio to refresh
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['msg'] ?? "Sold Successfully")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['error'] ?? "Sell Failed")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Connection to server failed")),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF0F0F1A),
       appBar: AppBar(
+        title: Text("Sell ${widget.share['symbol']}"),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: true,
-        foregroundColor: Colors.white,
-        titleSpacing: 16,
-        title: Row(
-          children: const [
-            Text(
-              "Create Strategy",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
       ),
-
-      body: Stack(
-        children: [
-          /// 🔥 DARK GRADIENT
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF000000),
-                  Color(0xFF0F0F1A),
-                  Color(0xFF1A1A2E),
-                ],
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
               ),
-            ),
-          ),
-
-          /// 🔵 GLOW TOP RIGHT
-          Positioned(
-            top: -120,
-            right: -120,
-            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
-          ),
-
-          /// 🔵 GLOW BOTTOM LEFT
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
-          ),
-
-          /// 📄 CONTENT
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// 🔹 GLASS FORM CARD
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.08),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              _glassField("Buy Price", buyCtrl),
-                              _glassField("Sell Price", sellCtrl),
-                              _glassField("Stop Loss", slCtrl),
-                              _glassField("Quantity", qtyCtrl),
-                              const SizedBox(height: 20),
-
-                              /// 🚀 START ALGO BUTTON
-                              ElevatedButton(
-                                onPressed: () async {
-                                  await ApiService.stopAlgo(symbol);
-
-                                  Navigator.pop(context);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.all(20),
-                                  backgroundColor: Colors.indigoAccent,
-                                  minimumSize: const Size(double.infinity, 50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Stop Algo',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                  const Text(
+                    "Current Holdings",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  Text(
+                    "${widget.share['quantity']}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _glassField(String label, TextEditingController c) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: c,
-        style: const TextStyle(color: Colors.white),
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Colors.white70),
-
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.06),
-
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
-          ),
-
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.indigoAccent, width: 2),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlowCircle(Color color) {
-    return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-        child: Container(
-          width: 300,
-          height: 300,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _qtyController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                labelText: "Quantity to Sell",
+                labelStyle: const TextStyle(color: Colors.white54),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.white10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(color: Colors.indigoAccent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+            _isLoading
+                ? const CircularProgressIndicator(color: Colors.orangeAccent)
+                : SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _handleSell,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orangeAccent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Text(
+                        "CONFIRM SELL",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+          ],
         ),
       ),
     );

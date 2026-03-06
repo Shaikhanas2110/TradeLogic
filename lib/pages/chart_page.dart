@@ -99,7 +99,7 @@ class _ChartPageState extends State<ChartPage> {
   Future<void> _fetchMinuteData() async {
     try {
       final uri = Uri.parse(
-        "http://192.168.1.17:4000/minute_data/${widget.instrumentKey}",
+        "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
       );
 
       final res = await http.get(uri);
