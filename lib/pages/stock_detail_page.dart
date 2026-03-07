@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tradelogic/pages/chart_page.dart';
 import '../services/api_service.dart';
 import 'dart:ui';
@@ -20,142 +21,388 @@ class StockDetailPage extends StatefulWidget {
   State<StockDetailPage> createState() => _StockDetailPageState();
 }
 
-class _StockDetailPageState extends State<StockDetailPage> {
+class _StockDetailPageState extends State<StockDetailPage>
+    with SingleTickerProviderStateMixin {
   late Timer _timer;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  double? _currentPrice;
+  double? _previousPrice;
+  bool _isPriceUp = true;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) => setState(() {}));
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _fadeController.forward();
+
+    _fetchPrice();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _fetchPrice());
+  }
+
+  Future<void> _fetchPrice() async {
+    try {
+      final price = await ApiService.getLTP(widget.symbol);
+      if (mounted) {
+        setState(() {
+          if (_currentPrice != null) {
+            _isPriceUp = price >= _currentPrice!;
+          }
+          _previousPrice = _currentPrice;
+          _currentPrice = price;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _timer.cancel();
+    _fadeController.dispose();
     super.dispose();
+  }
+
+  Color get _priceColor =>
+      _isPriceUp ? const Color(0xFF00C853) : const Color(0xFFFF5252);
+
+  String get _initials {
+    final s = widget.symbol;
+    return s.length >= 2 ? s.substring(0, 2) : s;
+  }
+
+  Color _avatarColor(String symbol) {
+    const colors = [
+      Color(0xFF00C853),
+      Color(0xFF448AFF),
+      Color(0xFFFF6D00),
+      Color(0xFFAA00FF),
+      Color(0xFF00BCD4),
+      Color(0xFFFF5252),
+    ];
+    int hash = 0;
+    for (var ch in symbol.codeUnits) {
+      hash = (hash * 31 + ch) % colors.length;
+    }
+    return colors[hash % colors.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBody: true,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const BackButton(color: Colors.white),
+    final avatarColor = _avatarColor(widget.symbol);
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
       ),
-      body: Stack(
-        children: [
-          /// 🔥 DARK GRADIENT BASE
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF000000),
-                  Color(0xFF0F0F1A),
-                  Color(0xFF1A1A2E),
-                ],
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F6FA),
+        body: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            children: [
+              // ── TOP WHITE HEADER ────────────────────────────────────
+              Container(
+                color: Colors.white,
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Back + Actions row
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 20,
+                                color: Color(0xFF1A1A2E),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const Spacer(),
+                            _headerIconBtn(Icons.notifications_none_rounded),
+                            const SizedBox(width: 6),
+                            _headerIconBtn(Icons.ios_share_rounded),
+                          ],
+                        ),
+                      ),
+
+                      // Symbol info
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Logo / Avatar
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: avatarColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _initials,
+                                  style: TextStyle(
+                                    color: avatarColor,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            // Name + exchange
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.symbol,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1A1A2E),
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF0F0F0),
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          widget.exchange,
+                                          style: const TextStyle(
+                                            color: Color(0xFF555F6E),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFF00C853),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        "Live",
+                                        style: TextStyle(
+                                          color: Color(0xFF00C853),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Live Price
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  transitionBuilder: (child, anim) =>
+                                      SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.3),
+                                          end: Offset.zero,
+                                        ).animate(anim),
+                                        child: FadeTransition(
+                                          opacity: anim,
+                                          child: child,
+                                        ),
+                                      ),
+                                  child: _currentPrice == null
+                                      ? _shimmerBox(90, 28)
+                                      : Text(
+                                          "₹${_currentPrice!.toStringAsFixed(2)}",
+                                          key: ValueKey(_currentPrice),
+                                          style: TextStyle(
+                                            color: const Color(0xFF1A1A2E),
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.3,
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (_currentPrice != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _priceColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _isPriceUp
+                                              ? Icons.arrow_drop_up_rounded
+                                              : Icons.arrow_drop_down_rounded,
+                                          size: 16,
+                                          color: _priceColor,
+                                        ),
+                                        Text(
+                                          "0.00%",
+                                          style: TextStyle(
+                                            color: _priceColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          /// 🔵 INDIGO GLOW (TOP RIGHT)
-          Positioned(
-            top: -120,
-            right: -120,
-            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
-          ),
-
-          /// 🔵 INDIGO GLOW (BOTTOM LEFT)
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
-          ),
-
-          /// 📄 PAGE CONTENT
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      backgroundImage: AssetImage('images/logo1.png'),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      widget.symbol,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  widget.exchange,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-
-                /// LIVE PRICE
-                FutureBuilder<double>(
-                  future: ApiService.getLTP(widget.symbol),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator(
-                        color: Colors.indigoAccent,
-                      );
-                    }
-
-                    return Text(
-                      "₹${snapshot.data!.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 2),
-
-                /// CHART CARD (Glass Style)
-                Expanded(
+              // ── CHART SECTION ────────────────────────────────────────
+              Expanded(
+                child: Container(
+                  color: const Color(0xFFF5F6FA),
                   child: ChartPage(
                     symbol: widget.symbol,
                     instrumentKey: widget.instrumentKey,
                     exchange: widget.exchange,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
+
+        // ── BUY / SELL BOTTOM BAR ─────────────────────────────────────
+        // bottomNavigationBar: Container(
+        //   color: Colors.white,
+        //   padding: EdgeInsets.only(
+        //     left: 20,
+        //     right: 20,
+        //     top: 12,
+        //     bottom: MediaQuery.of(context).padding.bottom + 12,
+        //   ),
+        //   child: Row(
+        //     children: [
+        //       Expanded(
+        //         child: _actionButton(
+        //           label: "BUY",
+        //           color: const Color(0xFF00C853),
+        //           onTap: () {},
+        //         ),
+        //       ),
+        //       const SizedBox(width: 12),
+        //       Expanded(
+        //         child: _actionButton(
+        //           label: "SELL",
+        //           color: const Color(0xFFFF5252),
+        //           onTap: () {},
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+      
       ),
     );
   }
 
-  Widget _buildGlowCircle(Color color) {
-    return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-        child: Container(
-          width: 300,
-          height: 300,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+  Widget _headerIconBtn(IconData icon) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F6FA),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, size: 18, color: const Color(0xFF1A1A2E)),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+Widget _shimmerBox(double width, double height) {
+  return Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: const Color(0xFFEEEEEE),
+      borderRadius: BorderRadius.circular(8),
+    ),
+  );
 }

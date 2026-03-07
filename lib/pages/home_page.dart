@@ -1,19 +1,19 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:tradelogic/pages/chart_page.dart';
+import 'package:tradelogic/models/firebase_portfolio_service.dart';
 import 'package:tradelogic/pages/stock_detail_page.dart';
-import 'dart:ui';
-import '../services/api_service.dart'; // Ensure your API service handles GET endpoints
+import '../services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final List<Map<String, dynamic>> trackedSymbols = [
     {
       "symbol": "NIFTY",
@@ -68,347 +68,561 @@ class _HomePageState extends State<HomePage> {
 
   Map<String, Map<String, dynamic>> marketData = {};
 
-  // These variables hold the user's real financial data
-  double availableBalance = 100000.0; // Default initialization
+  // ── These are now driven by Firebase streams ──────────────────────────────
+  double availableBalance = 100000.0;
   double totalNetWorth = 100000.0;
-  List<dynamic> userPortfolio = [];
+  List<Map<String, dynamic>> userPortfolio = [];
+
+  StreamSubscription? _balanceSub;
+  StreamSubscription? _portfolioSub;
+
   final user = FirebaseAuth.instance.currentUser;
   String username = "Loading...";
   bool isLoading = true;
+  bool marketLoading = true;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _fadeController.forward();
+
+    _subscribeToFirebase(); // ← real-time listeners
     _fetchMarketData();
-    _loadUserData();
     fetchUsername();
   }
 
-  Future<void> _loadUserData() async {
-    setState(() {
-      isLoading = true;
-    });
+  @override
+  void dispose() {
+    _balanceSub?.cancel();
+    _portfolioSub?.cancel();
+    _fadeController.dispose();
+    super.dispose();
+  }
 
-    try {
-      final data = await ApiService.getAccountStatus();
+  // ── REAL-TIME FIREBASE LISTENERS ──────────────────────────────────────────
+  // These fire instantly whenever a buy or sell writes to Firebase.
+  // No manual refresh needed — the UI updates itself.
 
-      setState(() {
-        availableBalance = data['cash_available'] ?? 100000.0;
-        totalNetWorth = data['total_net_worth'] ?? 100000.0;
-        userPortfolio = data['portfolio'] ?? [];
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Error loading user data: $e");
-      setState(() {
-        isLoading = false;
-      });
-    }
+  void _subscribeToFirebase() {
+    // Balance stream
+    _balanceSub = FirebasePortfolioService.balanceStream().listen(
+      (data) {
+        if (mounted) {
+          setState(() {
+            availableBalance = data['cash_available'] ?? 100000.0;
+            totalNetWorth = data['total_net_worth'] ?? 100000.0;
+            isLoading = false;
+          });
+        }
+      },
+      onError: (e) {
+        debugPrint("Balance stream error: $e");
+        if (mounted) setState(() => isLoading = false);
+      },
+    );
+
+    // Portfolio stream
+    _portfolioSub = FirebasePortfolioService.portfolioStream().listen(
+      (portfolio) {
+        if (mounted) {
+          setState(() {
+            userPortfolio = portfolio;
+          });
+        }
+      },
+      onError: (e) {
+        debugPrint("Portfolio stream error: $e");
+      },
+    );
   }
 
   Future<void> fetchUsername() async {
     if (user == null) return;
-
     final ref = FirebaseDatabase.instance.ref().child("users").child(user!.uid);
-
     final snapshot = await ref.child("username").get();
-    final snapshot_email = await ref.child("email").get();
-
-    if (snapshot.exists) {
+    if (mounted) {
       setState(() {
-        username = snapshot.value.toString();
-      });
-    } else {
-      setState(() {
-        username = "User";
+        username = snapshot.exists ? snapshot.value.toString() : "User";
       });
     }
   }
 
   Future<void> _fetchMarketData() async {
-    setState(() => isLoading = true);
-
+    setState(() => marketLoading = true);
     for (var item in trackedSymbols) {
       final symbol = item["symbol"] as String;
       try {
         final currentPrice = await ApiService.getLTP(symbol);
-        marketData[symbol] = {
-          "price": currentPrice.toStringAsFixed(2),
-          "change": 0.0,
-        };
+        if (mounted) {
+          setState(() {
+            marketData[symbol] = {
+              "price": currentPrice.toStringAsFixed(2),
+              "change": 0.0,
+            };
+          });
+        }
       } catch (e) {
         debugPrint("Failed to fetch $symbol: $e");
       }
     }
-    setState(() => isLoading = false);
+    if (mounted) setState(() => marketLoading = false);
   }
 
-  // Function to refresh balance when a trade happens
-  Future<void> _refreshBalance() async {
-    // Call this after Buy/Sell completes
-    await _loadUserData();
-    _fetchMarketData();
+  // Pull-to-refresh only refreshes market data now.
+  // Balance/portfolio refresh automatically via streams.
+  Future<void> _onRefresh() async {
+    await _fetchMarketData();
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          /// 🔥 DARK GRADIENT BACKGROUND
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF000000),
-                  Color(0xFF0F0F1A),
-                  Color(0xFF1A1A2E),
-                ],
-              ),
-            ),
-          ),
-
-          Positioned(
-            top: -120,
-            right: -120,
-            child: _buildGlowCircle(Colors.indigoAccent.withOpacity(0.6)),
-          ),
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: _buildGlowCircle(Colors.indigo.withOpacity(0.5)),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _glassAppBar(),
-                  const SizedBox(height: 20),
-
-                  /// UPDATED SUMMARY CARD TO SHOW REAL DATA
-                  summaryCard(availableBalance, totalNetWorth),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    "Your Positions",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  /// PORTFOLIO LIST SECTION
-                  if (isLoading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (userPortfolio.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "No active positions",
-                          style: TextStyle(color: Colors.grey[400]),
-                        ),
-                      ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: userPortfolio.length,
-                      itemBuilder: (context, index) {
-                        final pos = userPortfolio[index];
-                        final symbolName = pos["symbol"];
-                        final qty = pos["quantity"];
-                        final avgPrice = pos["avg_price"];
-
-                        // Find live price for comparison
-                        final livePriceStr =
-                            marketData[symbolName]?['price'] ?? "—";
-
-                        final livePrice = livePriceStr == "—"
-                            ? 0.0
-                            : double.tryParse(livePriceStr) ?? 0.0;
-
-                        return CardWidget(
-                          symbol: symbolName,
-                          qty: qty,
-                          avgPrice: avgPrice,
-                          currentPrice: livePrice,
-                        );
-                      },
-                    ),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Market Overview",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.greenAccent,
+      backgroundColor: const Color(0xFFF5F6FA),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: RefreshIndicator(
+          color: const Color(0xFF00C853),
+          onRefresh: _onRefresh,
+          child: CustomScrollView(
+            slivers: [
+              // ── APP BAR ──────────────────────────────────────────
+              SliverAppBar(
+                expandedHeight: 0,
+                floating: true,
+                snap: true,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                titleSpacing: 0,
+                automaticallyImplyLeading: false,
+                title: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF00C853).withOpacity(0.12),
+                            ),
+                            child: const CircleAvatar(
+                              radius: 20,
+                              backgroundImage: AssetImage('images/logo.png'),
+                              backgroundColor: Colors.transparent,
+                            ),
                           ),
-                        )
-                      : GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.6,
-                          children: trackedSymbols.map((item) {
-                            final symbol = item["symbol"] as String;
-                            final data =
-                                marketData[symbol] ??
-                                {"price": "—", "change": 0.0};
-                            return MarketCard(
-                              symbol: item["name"] as String,
-                              price: data["price"] as String,
-                              change: data["change"] as double,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => StockDetailPage(
-                                      symbol: item["symbol"],
-                                      exchange: item["exchange"],
-                                      instrumentKey: item["instrument_key"],
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }).toList(),
-                        ),
-                ],
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getGreeting(),
+                                style: const TextStyle(
+                                  color: Color(0xFF9E9E9E),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              Text(
+                                username,
+                                style: const TextStyle(
+                                  color: Color(0xFF1A1A2E),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          _iconButton(Icons.search_rounded, () {}),
+                          const SizedBox(width: 8),
+                          _iconButton(Icons.notifications_none_rounded, () {}),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
+
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+
+                    // ── BALANCE CARD ──────────────────────────────
+                    _BalanceCard(
+                      balance: availableBalance,
+                      netWorth: totalNetWorth,
+                      isLoading: isLoading,
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // ── POSITIONS ─────────────────────────────────
+                    _sectionHeader("Your Positions", onSeeAll: () {}),
+                    const SizedBox(height: 12),
+
+                    if (isLoading)
+                      _skeletonList()
+                    else if (userPortfolio.isEmpty)
+                      _emptyPositions()
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: userPortfolio.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        itemBuilder: (context, index) {
+                          final pos = userPortfolio[index];
+                          final symbolName = pos["symbol"]?.toString() ?? '';
+                          final int qty = (pos["quantity"] ?? 0) as int;
+                          final double avgPrice = (pos["avg_price"] ?? 0.0)
+                              .toDouble();
+                          final String livePriceStr =
+                              marketData[symbolName]?['price'] ?? "—";
+                          final double livePrice = livePriceStr == "—"
+                              ? (pos["ltp"] ?? avgPrice).toDouble()
+                              : double.tryParse(livePriceStr) ?? avgPrice;
+                          return CardWidget(
+                            symbol: symbolName,
+                            qty: qty,
+                            avgPrice: avgPrice,
+                            currentPrice: livePrice,
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: 28),
+
+                    // ── MARKET OVERVIEW ───────────────────────────
+                    _sectionHeader("Market Overview", onSeeAll: () {}),
+                    const SizedBox(height: 12),
+
+                    if (marketLoading)
+                      _marketSkeleton()
+                    else
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        childAspectRatio: 1.7,
+                        children: trackedSymbols.map((item) {
+                          final symbol = item["symbol"] as String;
+                          final data =
+                              marketData[symbol] ??
+                              {"price": "—", "change": 0.0};
+                          return MarketCard(
+                            symbol: item["name"] as String,
+                            price: data["price"] as String,
+                            change: (data["change"] as num).toDouble(),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StockDetailPage(
+                                    symbol: item["symbol"],
+                                    exchange: item["exchange"],
+                                    instrumentKey: item["instrument_key"],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F6FA),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 20, color: const Color(0xFF1A1A2E)),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title, {VoidCallback? onSeeAll}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF1A1A2E),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: const Text(
+                "See all",
+                style: TextStyle(
+                  color: Color(0xFF00C853),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _glassAppBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
+  Widget _emptyPositions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEEEEEE)),
+        ),
+        child: Column(
           children: [
-            const CircleAvatar(
-              radius: 22,
-              backgroundImage: AssetImage('images/logo.png'),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFF00C853).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.show_chart_rounded,
+                color: Color(0xFF00C853),
+                size: 26,
+              ),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "GOOD MORNING",
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                Text(
-                  username.isNotEmpty ? username : "U",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            const Text(
+              "No active positions",
+              style: TextStyle(
+                color: Color(0xFF1A1A2E),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Start trading to see your positions here",
+              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 12),
             ),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {},
+      ),
+    );
+  }
+
+  Widget _skeletonList() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: List.generate(
+          2,
+          (i) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _marketSkeleton() {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      childAspectRatio: 1.7,
+      children: List.generate(
+        4,
+        (i) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
     );
   }
 }
 
-Widget summaryCard(double balance, double netWorth) {
-  return ClipRRect(
-    borderRadius: BorderRadius.circular(20),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+// ── BALANCE CARD ─────────────────────────────────────────────────────────────
+
+class _BalanceCard extends StatelessWidget {
+  final double balance;
+  final double netWorth;
+  final bool isLoading;
+
+  const _BalanceCard({
+    required this.balance,
+    required this.netWorth,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0D1B2A), Color(0xFF1B2A3B)],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0D1B2A).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "AVAILABLE BALANCE",
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  "Portfolio Value",
+                  style: TextStyle(
+                    color: Color(0xFF8FA3B1),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "\₹${balance.toStringAsFixed(2)}", // Format to local currency if needed
-                  style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00C853).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.circle, size: 6, color: Color(0xFF00C853)),
+                      SizedBox(width: 5),
+                      Text(
+                        "LIVE",
+                        style: TextStyle(
+                          color: Color(0xFF00C853),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            VerticalDivider(color: Colors.white24, thickness: 1),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 10),
+            isLoading
+                ? _shimmerBox(140, 32)
+                : Text(
+                    "₹${_formatAmount(netWorth)}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+            const SizedBox(height: 20),
+            Container(height: 1, color: Colors.white.withOpacity(0.07)),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                const Text(
-                  "NET WORTH",
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                Expanded(
+                  child: _balanceTile(
+                    label: "Available Balance",
+                    value: isLoading ? null : "₹${_formatAmount(balance)}",
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: const Color(0xFF00C853),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "\₹${netWorth.toStringAsFixed(2)}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: Colors.white.withOpacity(0.07),
+                ),
+                Expanded(
+                  child: _balanceTile(
+                    label: "Invested",
+                    value: isLoading
+                        ? null
+                        : "₹${_formatAmount(netWorth - balance)}",
+                    icon: Icons.trending_up_rounded,
+                    iconColor: const Color(0xFF448AFF),
+                    align: CrossAxisAlignment.end,
                   ),
                 ),
               ],
@@ -416,9 +630,76 @@ Widget summaryCard(double balance, double netWorth) {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _balanceTile({
+    required String label,
+    String? value,
+    required IconData icon,
+    required Color iconColor,
+    CrossAxisAlignment align = CrossAxisAlignment.start,
+  }) {
+    return Column(
+      crossAxisAlignment: align,
+      children: [
+        Row(
+          mainAxisAlignment: align == CrossAxisAlignment.start
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.end,
+          children: [
+            Icon(icon, size: 13, color: iconColor),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF8FA3B1),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        value == null
+            ? _shimmerBox(80, 18)
+            : Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+      ],
+    );
+  }
+
+  String _formatAmount(double amount) {
+    if (amount >= 10000000) {
+      return "${(amount / 10000000).toStringAsFixed(2)}Cr";
+    } else if (amount >= 100000) {
+      return "${(amount / 100000).toStringAsFixed(2)}L";
+    } else if (amount >= 1000) {
+      return "${(amount / 1000).toStringAsFixed(1)}K";
+    }
+    return amount.toStringAsFixed(2);
+  }
+}
+
+Widget _shimmerBox(double width, double height) {
+  return Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(6),
     ),
   );
 }
+
+// ── POSITION CARD ────────────────────────────────────────────────────────────
 
 class CardWidget extends StatelessWidget {
   final String symbol;
@@ -437,146 +718,198 @@ class CardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profitLoss = (currentPrice - avgPrice) * qty;
-    final isProfit = profitLoss > 0;
+    final profitLossPct = avgPrice != 0
+        ? ((currentPrice - avgPrice) / avgPrice) * 100
+        : 0.0;
+    final isProfit = profitLoss >= 0;
+    final plColor = isProfit
+        ? const Color(0xFF00C853)
+        : const Color(0xFFFF5252);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "$qty Qty @ ₹${avgPrice}",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF00C853).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                symbol.substring(0, symbol.length.clamp(0, 2)),
+                style: const TextStyle(
+                  color: Color(0xFF00C853),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    isProfit ? "₹$profitLoss" : "₹$profitLoss",
-                    style: TextStyle(
-                      color: isProfit ? Colors.greenAccent : Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  symbol,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A2E),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Text(
-                    "₹${currentPrice.toStringAsFixed(2)}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "$qty shares • Avg ₹${avgPrice.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    color: Color(0xFF9E9E9E),
+                    fontSize: 11,
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                currentPrice > 0 ? "₹${currentPrice.toStringAsFixed(2)}" : "—",
+                style: const TextStyle(
+                  color: Color(0xFF1A1A2E),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: plColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "${isProfit ? '+' : ''}${profitLoss.toStringAsFixed(0)} (${profitLossPct.toStringAsFixed(1)}%)",
+                  style: TextStyle(
+                    color: plColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+// ── MARKET CARD ──────────────────────────────────────────────────────────────
+
 class MarketCard extends StatelessWidget {
   final String symbol;
   final String price;
   final double change;
-  final VoidCallback? onTap; // Add callback
+  final VoidCallback? onTap;
 
   const MarketCard({
     super.key,
     required this.symbol,
     required this.price,
     required this.change,
-    this.onTap, // Optional tap handler
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isPositive = change >= 0;
+    final changeColor = isPositive
+        ? const Color(0xFF00C853)
+        : const Color(0xFFFF5252);
+
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      symbol,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                Flexible(
+                  child: Text(
+                    symbol,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF555F6E),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
                     ),
-                    Text(
-                      "${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%",
-                      style: TextStyle(
-                        color: isPositive
-                            ? Colors.greenAccent
-                            : Colors.redAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  price == "—" ? "—" : "₹$price",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: changeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive
+                            ? Icons.arrow_drop_up_rounded
+                            : Icons.arrow_drop_down_rounded,
+                        size: 14,
+                        color: changeColor,
+                      ),
+                      Text(
+                        "${change.abs().toStringAsFixed(1)}%",
+                        style: TextStyle(
+                          color: changeColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
+            Text(
+              price == "—" ? "—" : "₹$price",
+              style: const TextStyle(
+                color: Color(0xFF1A1A2E),
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-Widget _buildGlowCircle(Color color) {
-  return ClipOval(
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-      child: Container(
-        width: 300,
-        height: 300,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-      ),
-    ),
-  );
 }
