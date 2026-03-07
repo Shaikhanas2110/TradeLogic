@@ -32,19 +32,25 @@ class SignalPoint {
 class _ChartPageState extends State<ChartPage> {
   List<Map<String, dynamic>> pricePoints = [];
   List<SignalPoint> signalPoints = [];
-
   List<String> availableStrategies = [];
   String selectedStrategy = "RSI Fibonacci";
   String currentSignal = "⚪ HOLD";
 
+  // Automation State
+  bool isRunning = false;
+  String _lastExecutedSignal =
+      "⚪ HOLD"; // Prevents multiple orders for same signal
+
   final TextEditingController quantityController = TextEditingController(
     text: "1",
   );
-
-  bool isRunning = false;
-
   Timer? _dataTimer;
   Timer? _strategyTimer;
+
+  // IP Configuration - Change these to your Server IP
+  final String flaskBaseUrl =
+      "http://192.168.1.17:5000"; // Flask (Trading Engine)
+  final String dataUrl = "http://127.0.0.1:4000"; // Data Server
 
   @override
   void initState() {
@@ -60,7 +66,6 @@ class _ChartPageState extends State<ChartPage> {
       const Duration(seconds: 60),
       (_) => _fetchMinuteData(),
     );
-
     _strategyTimer = Timer.periodic(
       const Duration(seconds: 45),
       (_) => _fetchStrategySignal(),
@@ -75,18 +80,72 @@ class _ChartPageState extends State<ChartPage> {
     super.dispose();
   }
 
+  // ---------------- AUTOMATION LOGIC ----------------
+
+  Future<void> _executeAutoTrade(String type, double price) async {
+    final String endpoint = type == "buy" ? "/buy_order" : "/sell_order";
+    final int qty = int.tryParse(quantityController.text) ?? 1;
+
+    try {
+      final uri = Uri.parse("$dataUrl$endpoint");
+
+      // Matches your Python Flask request.json structure
+      final payload = {
+        "symbol": widget.symbol,
+        "qty": qty,
+        "price": price, // Used by /buy_order
+        "sell_price": price, // Used by /sell_order
+      };
+
+      final res = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      );
+
+      if (res.statusCode == 200) {
+        final result = jsonDecode(res.body);
+        _showTradeNotification(
+          "AUTO ${type.toUpperCase()}",
+          "Executed @ ₹$price. ${result['msg']}",
+          type,
+        );
+      } else {
+        debugPrint("Trade Failed: ${res.body}");
+      }
+    } catch (e) {
+      debugPrint("Network Error in Auto Trade: $e");
+    }
+  }
+
+  void _showTradeNotification(String title, String msg, String type) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(msg),
+          ],
+        ),
+        backgroundColor: type == "buy" ? Colors.green[700] : Colors.red[700],
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   // ---------------- API CALLS ----------------
 
   Future<void> _fetchAvailableStrategies() async {
     try {
-      final res = await http.get(
-        Uri.parse("http://192.168.1.17:5000/strategies"),
-      );
+      final res = await http.get(Uri.parse("$flaskBaseUrl/strategies"));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
           availableStrategies = List<String>.from(data["strategies"]);
-          if (availableStrategies.isNotEmpty) {
+          if (availableStrategies.isNotEmpty &&
+              !availableStrategies.contains(selectedStrategy)) {
             selectedStrategy = availableStrategies[0];
           }
         });
@@ -98,31 +157,22 @@ class _ChartPageState extends State<ChartPage> {
 
   Future<void> _fetchMinuteData() async {
     try {
-      final uri = Uri.parse(
-        "http://127.0.0.1:4000/minute_data/${widget.instrumentKey}",
-      );
-
+      final uri = Uri.parse("$dataUrl/minute_data/${widget.instrumentKey}");
       final res = await http.get(uri);
-
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
         final List<dynamic> rawData = decoded is List
             ? decoded
             : (decoded["chart"] ?? []);
-
         if (rawData.isEmpty) return;
 
         List<Map<String, dynamic>> tempPoints = [];
-
         for (var item in rawData) {
           final timeStr = item["time"];
           final price = item["price"];
-
           if (timeStr == null || price == null) continue;
-
           final now = DateTime.now();
           final parts = timeStr.toString().split(':');
-
           final dt = DateTime(
             now.year,
             now.month,
@@ -130,18 +180,12 @@ class _ChartPageState extends State<ChartPage> {
             int.parse(parts[0]),
             int.parse(parts[1]),
           );
-
           tempPoints.add({
             "timestamp": dt.millisecondsSinceEpoch / 1000.0,
             "price": (price as num).toDouble(),
           });
         }
-
-        if (mounted) {
-          setState(() {
-            pricePoints = tempPoints;
-          });
-        }
+        if (mounted) setState(() => pricePoints = tempPoints);
       }
     } catch (e) {
       debugPrint("Data Fetch Error: $e");
@@ -152,8 +196,7 @@ class _ChartPageState extends State<ChartPage> {
     if (pricePoints.isEmpty) return;
 
     try {
-      final uri = Uri.parse("http://192.168.1.17:5000/analyze");
-
+      final uri = Uri.parse("$flaskBaseUrl/analyze");
       final body = jsonEncode({
         "symbol": widget.symbol,
         "exchange": "NSE",
@@ -169,25 +212,39 @@ class _ChartPageState extends State<ChartPage> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final newSignal = data["signal"];
+        final String newSignal = data["signal"];
+        final double currentPrice = (data["current_price"] as num).toDouble();
         final reason = data["reason"];
         final confidence = data["confidence"];
 
-        final lastPoint = pricePoints.last;
-        final newDot = SignalPoint(
-          lastPoint["timestamp"],
-          lastPoint["price"],
-          newSignal,
-        );
-
         setState(() {
-          signalPoints.add(newDot);
-
-          if (newSignal != currentSignal) {
-            currentSignal = newSignal;
-            _showSnackBar(newSignal, reason, confidence);
-          }
+          currentSignal = newSignal;
+          signalPoints.add(
+            SignalPoint(pricePoints.last["timestamp"], currentPrice, newSignal),
+          );
         });
+
+        // 🔥 AUTOMATION LOGIC TRIGGER
+        if (isRunning) {
+          // Check if signal changed to prevent double-buying/selling
+          if (newSignal != _lastExecutedSignal) {
+            if (newSignal.contains("BUY") || newSignal.contains("🟢")) {
+              await _executeAutoTrade("buy", currentPrice);
+              _lastExecutedSignal = newSignal;
+            } else if (newSignal.contains("SELL") || newSignal.contains("🔴")) {
+              await _executeAutoTrade("sell", currentPrice);
+              _lastExecutedSignal = newSignal;
+            } else if (newSignal.contains("HOLD")) {
+              _lastExecutedSignal =
+                  "⚪ HOLD"; // Reset so next BUY/SELL can trigger
+            }
+          }
+        }
+
+        // Show snackbar only on signal change
+        if (newSignal != _lastExecutedSignal) {
+          _showSnackBar(newSignal, reason, confidence);
+        }
       }
     } catch (e) {
       debugPrint("Signal Fetch Error: $e");
@@ -216,7 +273,6 @@ class _ChartPageState extends State<ChartPage> {
     final dots = signalPoints.length > 50
         ? signalPoints.sublist(signalPoints.length - 50)
         : signalPoints;
-
     return dots
         .map(
           (e) => ScatterSpot(
@@ -235,13 +291,14 @@ class _ChartPageState extends State<ChartPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (pricePoints.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (pricePoints.isEmpty)
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
 
     final spots = _getSpots();
     final dots = _getDots();
-
     final prices = spots.map((e) => e.y).toList();
     final minY = prices.reduce((a, b) => a < b ? a : b) * 0.9995;
     final maxY = prices.reduce((a, b) => a > b ? a : b) * 1.0005;
@@ -255,9 +312,9 @@ class _ChartPageState extends State<ChartPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ---------------- CHART ----------------
+            // CHART
             SizedBox(
-              width: double.infinity, // 🔥 Forces full available width
+              width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.45,
               child: Container(
                 decoration: BoxDecoration(
@@ -267,7 +324,7 @@ class _ChartPageState extends State<ChartPage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: Stack(
-                    fit: StackFit.expand, // 🔥 VERY IMPORTANT
+                    fit: StackFit.expand,
                     children: [
                       ScatterChart(
                         ScatterChartData(
@@ -281,7 +338,6 @@ class _ChartPageState extends State<ChartPage> {
                           gridData: const FlGridData(show: false),
                         ),
                       ),
-
                       LineChart(
                         LineChartData(
                           minX: minX,
@@ -308,32 +364,24 @@ class _ChartPageState extends State<ChartPage> {
                             handleBuiltInTouches: true,
                             touchTooltipData: LineTouchTooltipData(
                               tooltipRoundedRadius: 8,
-                              tooltipPadding: const EdgeInsets.all(8),
-                              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                                return touchedBarSpots.map((barSpot) {
-                                  final time =
-                                      DateTime.fromMillisecondsSinceEpoch(
-                                        (barSpot.x * 1000).toInt(),
-                                      );
-
-                                  final timeStr = DateFormat(
-                                    'HH:mm',
-                                  ).format(time);
-
-                                  return LineTooltipItem(
-                                    '₹${barSpot.y.toStringAsFixed(2)}\n$timeStr',
-                                    const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  );
-                                }).toList();
-                              },
+                              getTooltipItems:
+                                  (
+                                    List<LineBarSpot> touchedBarSpots,
+                                  ) => touchedBarSpots
+                                      .map(
+                                        (barSpot) => LineTooltipItem(
+                                          '₹${barSpot.y.toStringAsFixed(2)}\n${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch((barSpot.x * 1000).toInt()))}',
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
                             ),
                           ),
                         ),
                       ),
-
                       Positioned(
                         top: 12,
                         left: 12,
@@ -361,11 +409,9 @@ class _ChartPageState extends State<ChartPage> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // ---------------- STRATEGY DROPDOWN ----------------
+            // STRATEGY DROPDOWN
             const Text("Strategy", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 8),
-
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -388,6 +434,7 @@ class _ChartPageState extends State<ChartPage> {
                         selectedStrategy = value;
                         signalPoints.clear();
                         currentSignal = "⚪ HOLD";
+                        _lastExecutedSignal = "⚪ HOLD";
                       });
                       _fetchStrategySignal();
                     }
@@ -398,13 +445,10 @@ class _ChartPageState extends State<ChartPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // ---------------- QUANTITY ----------------
+            // QUANTITY
             const Text("Quantity", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 8),
-
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
@@ -418,16 +462,17 @@ class _ChartPageState extends State<ChartPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // ---------------- BUTTONS ----------------
+            // AUTOMATION BUTTONS
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      setState(() => isRunning = !isRunning);
+                      setState(() {
+                        isRunning = !isRunning;
+                        _lastExecutedSignal = "⚪ HOLD"; // Fresh start
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isRunning ? Colors.red : Colors.green,
@@ -437,25 +482,23 @@ class _ChartPageState extends State<ChartPage> {
                       ),
                     ),
                     child: Text(
-                      isRunning ? "Stop" : "Start",
-                      style: const TextStyle(fontSize: 16,color: Colors.white),
+                      isRunning ? "Stop Automation" : "Start Automation",
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => StrategyPage(
-                            symbol: widget.symbol,
-                            exchange: widget.exchange,
-                          ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StrategyPage(
+                          symbol: widget.symbol,
+                          exchange: widget.exchange,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -464,14 +507,13 @@ class _ChartPageState extends State<ChartPage> {
                       ),
                     ),
                     child: const Text(
-                      "Create Strategy",
-                      style: TextStyle(fontSize: 16,color: Colors.white),
+                      "Custom Rules",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 30),
           ],
         ),
