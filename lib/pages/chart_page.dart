@@ -47,7 +47,7 @@ class _ChartPageState extends State<ChartPage>
   Timer? _strategyTimer;
 
   late TabController _tabController;
-  final List<String> _timeframes = ["1D", "1W", "1M", "3M", "1Y"];
+  final List<String> _timeframes = ["1D"];
   int _selectedTimeframe = 0;
 
   final String flaskBaseUrl = "http://192.168.1.17:5000";
@@ -136,8 +136,6 @@ class _ChartPageState extends State<ChartPage>
       ),
     );
   }
-
-  // ── API CALLS ─────────────────────────────────────────────────────────────
 
   Future<void> _fetchAvailableStrategies() async {
     try {
@@ -254,8 +252,6 @@ class _ChartPageState extends State<ChartPage>
       ),
     );
   }
-
-  // ── HELPERS ───────────────────────────────────────────────────────────────
 
   Color _getSignalColor(String signal) {
     if (signal.contains("BUY") || signal.contains("🟢"))
