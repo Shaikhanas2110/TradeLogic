@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tradelogic/pages/chart_page.dart';
 import '../services/api_service.dart';
-import 'dart:ui';
 
 class StockDetailPage extends StatefulWidget {
   final String symbol;
@@ -28,7 +27,7 @@ class _StockDetailPageState extends State<StockDetailPage>
   late Animation<double> _fadeAnimation;
 
   double? _currentPrice;
-  double? _previousPrice;
+  double? _prevClose; // previous day close — fetched once, stays fixed
   bool _isPriceUp = true;
 
   @override
@@ -51,14 +50,17 @@ class _StockDetailPageState extends State<StockDetailPage>
 
   Future<void> _fetchPrice() async {
     try {
-      final price = await ApiService.getLTP(widget.symbol);
+      // getLTPWithChange returns { "ltp": x, "prev_close": y }
+      final result = await ApiService.getLTPWithChange(widget.symbol);
+      final double ltp = result["ltp"] ?? 0.0;
+      final double prevClose = result["prev_close"] ?? 0.0;
+
       if (mounted) {
         setState(() {
-          if (_currentPrice != null) {
-            _isPriceUp = price >= _currentPrice!;
-          }
-          _previousPrice = _currentPrice;
-          _currentPrice = price;
+          _isPriceUp = _currentPrice == null || ltp >= _currentPrice!;
+          _currentPrice = ltp;
+          // Only set prevClose once — it's yesterday's close, doesn't change
+          _prevClose ??= prevClose > 0 ? prevClose : null;
         });
       }
     } catch (_) {}
@@ -71,8 +73,20 @@ class _StockDetailPageState extends State<StockDetailPage>
     super.dispose();
   }
 
+  // Real % change vs previous day close
+  double get _changePct {
+    if (_currentPrice == null || _prevClose == null || _prevClose == 0) {
+      return 0.0;
+    }
+    return ((_currentPrice! - _prevClose!) / _prevClose!) * 100;
+  }
+
   Color get _priceColor =>
       _isPriceUp ? const Color(0xFF00C853) : const Color(0xFFFF5252);
+
+  // Change badge color based on actual % change direction vs prev close
+  Color get _changeColor =>
+      _changePct >= 0 ? const Color(0xFF00C853) : const Color(0xFFFF5252);
 
   String get _initials {
     final s = widget.symbol;
@@ -98,6 +112,8 @@ class _StockDetailPageState extends State<StockDetailPage>
   @override
   Widget build(BuildContext context) {
     final avatarColor = _avatarColor(widget.symbol);
+    final double pct = _changePct;
+    final bool pctPos = pct >= 0;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -109,7 +125,7 @@ class _StockDetailPageState extends State<StockDetailPage>
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              // ── TOP WHITE HEADER ────────────────────────────────────
+              // ── TOP WHITE HEADER ──────────────────────────────────
               Container(
                 color: Colors.white,
                 child: SafeArea(
@@ -144,7 +160,7 @@ class _StockDetailPageState extends State<StockDetailPage>
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Logo / Avatar
+                            // Avatar
                             Container(
                               width: 46,
                               height: 46,
@@ -227,10 +243,11 @@ class _StockDetailPageState extends State<StockDetailPage>
                               ),
                             ),
 
-                            // Live Price
+                            // Live Price + % change
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
+                                // Animated price
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 300),
                                   transitionBuilder: (child, anim) =>
@@ -249,8 +266,8 @@ class _StockDetailPageState extends State<StockDetailPage>
                                       : Text(
                                           "₹${_currentPrice!.toStringAsFixed(2)}",
                                           key: ValueKey(_currentPrice),
-                                          style: TextStyle(
-                                            color: const Color(0xFF1A1A2E),
+                                          style: const TextStyle(
+                                            color: Color(0xFF1A1A2E),
                                             fontSize: 22,
                                             fontWeight: FontWeight.w800,
                                             letterSpacing: -0.3,
@@ -258,37 +275,47 @@ class _StockDetailPageState extends State<StockDetailPage>
                                         ),
                                 ),
                                 const SizedBox(height: 4),
+
+                                // % change badge — real value now
                                 if (_currentPrice != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _priceColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          _isPriceUp
-                                              ? Icons.arrow_drop_up_rounded
-                                              : Icons.arrow_drop_down_rounded,
-                                          size: 16,
-                                          color: _priceColor,
-                                        ),
-                                        Text(
-                                          "0.00%",
-                                          style: TextStyle(
-                                            color: _priceColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                                  _prevClose == null
+                                      ? _shimmerBox(70, 22)
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _changeColor.withOpacity(
+                                              0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                pctPos
+                                                    ? Icons
+                                                          .arrow_drop_up_rounded
+                                                    : Icons
+                                                          .arrow_drop_down_rounded,
+                                                size: 16,
+                                                color: _changeColor,
+                                              ),
+                                              Text(
+                                                "${pct.abs().toStringAsFixed(2)}%",
+                                                style: TextStyle(
+                                                  color: _changeColor,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
                               ],
                             ),
                           ],
@@ -299,7 +326,7 @@ class _StockDetailPageState extends State<StockDetailPage>
                 ),
               ),
 
-              // ── CHART SECTION ────────────────────────────────────────
+              // ── CHART SECTION ─────────────────────────────────────
               Expanded(
                 child: Container(
                   color: const Color(0xFFF5F6FA),
@@ -314,7 +341,7 @@ class _StockDetailPageState extends State<StockDetailPage>
           ),
         ),
 
-        // ── BUY / SELL BOTTOM BAR ─────────────────────────────────────
+        // ── BUY / SELL BOTTOM BAR ──────────────────────────────────
         // bottomNavigationBar: Container(
         //   color: Colors.white,
         //   padding: EdgeInsets.only(
@@ -343,7 +370,6 @@ class _StockDetailPageState extends State<StockDetailPage>
         //     ],
         //   ),
         // ),
-      
       ),
     );
   }

@@ -16,12 +16,23 @@ class _DashboardPageState extends State<DashboardPage>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    HomePage(),
-    WatchlistPage(),
-    PortfolioPage(),
-    SettingsPage(),
-  ];
+  // ── Pages are built fresh every time _currentIndex changes ───────────────
+  // Using a function instead of a const list means each tab switch
+  // creates a new widget instance, triggering initState() and a full reload.
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return const HomePage();
+      case 1:
+        return const WatchlistPage();
+      case 2:
+        return const PortfolioPage();
+      case 3:
+        return const SettingsPage();
+      default:
+        return const HomePage();
+    }
+  }
 
   void _onTap(int index) {
     if (index == _currentIndex) return;
@@ -40,7 +51,10 @@ class _DashboardPageState extends State<DashboardPage>
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F6FA),
         extendBody: false,
-        body: IndexedStack(index: _currentIndex, children: _pages),
+        // ── Direct render instead of IndexedStack ─────────────────────────
+        // IndexedStack keeps all pages alive and never rebuilds them.
+        // This rebuilds the active page fresh on every tab switch.
+        body: _buildPage(_currentIndex),
         bottomNavigationBar: _BottomNavBar(
           currentIndex: _currentIndex,
           onTap: _onTap,
@@ -191,7 +205,6 @@ class _NavBarItemState extends State<_NavBarItem>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Icon pill
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOut,
@@ -214,7 +227,6 @@ class _NavBarItemState extends State<_NavBarItem>
                 ),
               ),
               const SizedBox(height: 3),
-              // Label
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(

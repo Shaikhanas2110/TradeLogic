@@ -107,7 +107,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-   static Future<Map> getAccountStatus() async {
+  static Future<Map> getAccountStatus() async {
     // Return JSON from your Python endpoint: /account_status
     // Example: {'cash_available': 95000.0, 'portfolio': [...]}
     final response = await http.get(Uri.parse('${baseUrl}/account_status'));
@@ -117,14 +117,31 @@ class ApiService {
     throw Exception('Failed to load status');
   }
 
+  static Future<Map<String, double>> getLTPWithChange(String symbol) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/ltp1/$symbol'))
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final double ltp = (data['ltp'] ?? 0.0).toDouble();
+      final double prevClose = (data['prev_close'] ?? 0.0).toDouble();
+      return {"ltp": ltp, "prev_close": prevClose};
+    }
+    throw Exception('Failed to get LTP for $symbol');
+  }
+
   // New Method 2: Trigger Buy Order
-  static Future<bool> placeBuyOrder(String symbol, int qty, double price) async {
-     // Returns true if successful (money was deducted)
-     final response = await http.post(
-       Uri.parse("$baseUrl/place_buy_order"),
-       headers: {"Content-Type": "application/json"},
-       body: jsonEncode({"symbol": symbol, "qty": qty, "price": price}),
-     );
-     return response.statusCode == 200;
+  static Future<bool> placeBuyOrder(
+    String symbol,
+    int qty,
+    double price,
+  ) async {
+    // Returns true if successful (money was deducted)
+    final response = await http.post(
+      Uri.parse("$baseUrl/place_buy_order"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"symbol": symbol, "qty": qty, "price": price}),
+    );
+    return response.statusCode == 200;
   }
 }

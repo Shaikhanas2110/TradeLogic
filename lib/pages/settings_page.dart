@@ -109,6 +109,9 @@ class _SettingsPageState extends State<SettingsPage>
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"code": code}),
       );
+
+      await http.get(Uri.parse("$backendUrl/callback"));
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {

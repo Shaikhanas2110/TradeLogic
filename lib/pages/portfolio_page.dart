@@ -12,13 +12,12 @@ class PortfolioPage extends StatefulWidget {
 
 class _PortfolioPageState extends State<PortfolioPage>
     with SingleTickerProviderStateMixin {
-  Key _refreshKey = UniqueKey();
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  void _refreshPortfolio() {
-    setState(() => _refreshKey = UniqueKey());
-  }
+  List<Map<String, dynamic>> _stocks = [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -32,6 +31,7 @@ class _PortfolioPageState extends State<PortfolioPage>
       curve: Curves.easeOut,
     );
     _fadeController.forward();
+    _loadPortfolio();
   }
 
   @override
@@ -39,6 +39,74 @@ class _PortfolioPageState extends State<PortfolioPage>
     _fadeController.dispose();
     super.dispose();
   }
+
+  // ── LOAD PORTFOLIO + ENRICH WITH LIVE LTP ────────────────────────────────
+  // Fetches holdings from Firebase, then calls /ltp for each symbol
+  // to get live price + prev_close so P&L is always current.
+
+  Future<void> _loadPortfolio() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final portfolio = await FirebasePortfolioService.getPortfolio();
+
+      // Fetch live LTP for each holding concurrently
+      final enriched = await Future.wait(
+        portfolio.map((pos) async {
+          final symbol = pos['symbol']?.toString() ?? '';
+          try {
+            final result = await ApiService.getLTPWithChange(symbol);
+            final double livePrice =
+                result['ltp'] ??
+                (pos['ltp'] ?? pos['avg_price'] ?? 0.0).toDouble();
+            final double prevClose = result['prev_close'] ?? livePrice;
+            final double avg = (pos['avg_price'] ?? 0.0).toDouble();
+            final int qty = (pos['quantity'] ?? 0) as int;
+            final double pnl = (livePrice - avg) * qty;
+            final double dayChange = prevClose > 0
+                ? ((livePrice - prevClose) / prevClose) * 100
+                : 0.0;
+            return {
+              ...pos,
+              'ltp': livePrice,
+              'prev_close': prevClose,
+              'pnl': pnl,
+              'day_change': dayChange,
+            };
+          } catch (_) {
+            // If live fetch fails, fall back to Firebase stored ltp
+            final double avg = (pos['avg_price'] ?? 0.0).toDouble();
+            final double ltp = (pos['ltp'] ?? avg).toDouble();
+            final int qty = (pos['quantity'] ?? 0) as int;
+            return {
+              ...pos,
+              'ltp': ltp,
+              'prev_close': 0.0,
+              'pnl': (ltp - avg) * qty,
+              'day_change': 0.0,
+            };
+          }
+        }),
+      );
+
+      if (mounted) {
+        setState(() {
+          _stocks = enriched;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+    }
+  }
+
+  void _refreshPortfolio() => _loadPortfolio();
 
   Color _avatarColor(String symbol) {
     const colors = [
@@ -50,9 +118,7 @@ class _PortfolioPageState extends State<PortfolioPage>
       Color(0xFFFF5252),
     ];
     int hash = 0;
-    for (var ch in symbol.codeUnits) {
-      hash = (hash * 31 + ch) % colors.length;
-    }
+    for (var ch in symbol.codeUnits) hash = (hash * 31 + ch) % colors.length;
     return colors[hash % colors.length];
   }
 
@@ -62,129 +128,121 @@ class _PortfolioPageState extends State<PortfolioPage>
       backgroundColor: const Color(0xFFF5F6FA),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: FutureBuilder<List<dynamic>>(
-          key: _refreshKey,
-          future: FirebasePortfolioService.getPortfolio(),
-          builder: (context, snapshot) {
-            return NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                // ── APP BAR ───────────────────────────────────────────
-                SliverAppBar(
-                  pinned: true,
-                  floating: false,
-                  backgroundColor: Colors.white,
-                  elevation: innerBoxIsScrolled ? 1 : 0,
-                  shadowColor: Colors.black12,
-                  automaticallyImplyLeading: false,
-                  titleSpacing: 0,
-                  title: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            // ── APP BAR ─────────────────────────────────────────────
+            SliverAppBar(
+              pinned: true,
+              floating: false,
+              backgroundColor: Colors.white,
+              elevation: innerBoxIsScrolled ? 1 : 0,
+              shadowColor: Colors.black12,
+              automaticallyImplyLeading: false,
+              titleSpacing: 0,
+              title: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(
-                                  0xFF00C853,
-                                ).withOpacity(0.12),
-                              ),
-                              child: const CircleAvatar(
-                                radius: 20,
-                                backgroundImage: AssetImage('images/logo.png'),
-                                backgroundColor: Colors.transparent,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              "Portfolio",
-                              style: TextStyle(
-                                color: Color(0xFF1A1A2E),
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
-                              ),
-                            ),
-                          ],
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF00C853).withOpacity(0.12),
+                          ),
+                          child: const CircleAvatar(
+                            radius: 20,
+                            backgroundImage: AssetImage('images/logo.png'),
+                            backgroundColor: Colors.transparent,
+                          ),
                         ),
-                        GestureDetector(
-                          onTap: _refreshPortfolio,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5F6FA),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.refresh_rounded,
-                              size: 20,
-                              color: Color(0xFF1A1A2E),
-                            ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "Portfolio",
+                          style: TextStyle(
+                            color: Color(0xFF1A1A2E),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-
-                // ── SUMMARY CARD (shown only when data is loaded) ─────
-                if (snapshot.hasData && snapshot.data!.isNotEmpty)
-                  SliverToBoxAdapter(child: _buildSummaryCard(snapshot.data!)),
-
-                // ── SECTION LABEL ─────────────────────────────────────
-                if (snapshot.hasData && snapshot.data!.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Your Holdings",
-                            style: TextStyle(
-                              color: Color(0xFF1A1A2E),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF00C853).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "${snapshot.data!.length} stocks",
-                              style: const TextStyle(
-                                color: Color(0xFF00C853),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+                    GestureDetector(
+                      onTap: _refreshPortfolio,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F6FA),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 20,
+                          color: Color(0xFF1A1A2E),
+                        ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── SUMMARY CARD ─────────────────────────────────────────
+            if (!_loading && _error == null && _stocks.isNotEmpty)
+              SliverToBoxAdapter(child: _buildSummaryCard(_stocks)),
+
+            // ── SECTION LABEL ────────────────────────────────────────
+            if (!_loading && _error == null && _stocks.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Your Holdings",
+                        style: TextStyle(
+                          color: Color(0xFF1A1A2E),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00C853).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "${_stocks.length} stocks",
+                          style: const TextStyle(
+                            color: Color(0xFF00C853),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-              ],
-              body: _buildBody(snapshot),
-            );
-          },
+                ),
+              ),
+          ],
+          body: _buildBody(),
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCard(List<dynamic> stocks) {
+  Widget _buildSummaryCard(List<Map<String, dynamic>> stocks) {
     double totalInvested = 0;
     double totalCurrent = 0;
     for (final s in stocks) {
@@ -222,47 +280,43 @@ class _PortfolioPageState extends State<PortfolioPage>
             ),
           ],
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _summaryTile(
-                  label: "Invested",
-                  value: "₹${_fmt(totalInvested)}",
-                  icon: Icons.account_balance_wallet_outlined,
-                  iconColor: const Color(0xFF448AFF),
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white.withOpacity(0.07),
-                ),
-                _summaryTile(
-                  label: "Current",
-                  value: "₹${_fmt(totalCurrent)}",
-                  icon: Icons.show_chart_rounded,
-                  iconColor: const Color(0xFF00C853),
-                  align: CrossAxisAlignment.center,
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.white.withOpacity(0.07),
-                ),
-                _summaryTile(
-                  label: "P&L",
-                  value: "${isProfit ? '+' : ''}₹${_fmt(totalPnl)}",
-                  valueColor: pnlColor,
-                  icon: isProfit
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  iconColor: pnlColor,
-                  align: CrossAxisAlignment.end,
-                  subtitle:
-                      "${isProfit ? '+' : ''}${totalPnlPct.toStringAsFixed(2)}%",
-                ),
-              ],
+            _summaryTile(
+              label: "Invested",
+              value: "₹${_fmt(totalInvested)}",
+              icon: Icons.account_balance_wallet_outlined,
+              iconColor: const Color(0xFF448AFF),
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: Colors.white.withOpacity(0.07),
+            ),
+            _summaryTile(
+              label: "Current",
+              value: "₹${_fmt(totalCurrent)}",
+              icon: Icons.show_chart_rounded,
+              iconColor: const Color(0xFF00C853),
+              align: CrossAxisAlignment.center,
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: Colors.white.withOpacity(0.07),
+            ),
+            _summaryTile(
+              label: "P&L",
+              value: "${isProfit ? '+' : ''}₹${_fmt(totalPnl)}",
+              valueColor: pnlColor,
+              icon: isProfit
+                  ? Icons.trending_up_rounded
+                  : Icons.trending_down_rounded,
+              iconColor: pnlColor,
+              align: CrossAxisAlignment.end,
+              subtitle:
+                  "${isProfit ? '+' : ''}${totalPnlPct.toStringAsFixed(2)}%",
             ),
           ],
         ),
@@ -326,19 +380,19 @@ class _PortfolioPageState extends State<PortfolioPage>
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<List<dynamic>> snapshot) {
+  Widget _buildBody() {
     // Loading
-    if (snapshot.connectionState == ConnectionState.waiting) {
+    if (_loading) {
       return ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         itemCount: 5,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, __) => _SkeletonCard(),
+        itemBuilder: (_, __) => const _SkeletonCard(),
       );
     }
 
     // Error
-    if (snapshot.hasError) {
+    if (_error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -367,8 +421,19 @@ class _PortfolioPageState extends State<PortfolioPage>
             ),
             const SizedBox(height: 4),
             Text(
-              "${snapshot.error}",
+              _error!,
               style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _refreshPortfolio,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00C853),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text("Retry", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -376,7 +441,7 @@ class _PortfolioPageState extends State<PortfolioPage>
     }
 
     // Empty
-    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+    if (_stocks.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -413,13 +478,11 @@ class _PortfolioPageState extends State<PortfolioPage>
       );
     }
 
-    final stocks = snapshot.data!;
-
     return Container(
       color: Colors.white,
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: 20),
-        itemCount: stocks.length,
+        itemCount: _stocks.length,
         separatorBuilder: (_, __) => const Divider(
           height: 1,
           indent: 72,
@@ -427,14 +490,19 @@ class _PortfolioPageState extends State<PortfolioPage>
           color: Color(0xFFF5F5F5),
         ),
         itemBuilder: (context, i) {
-          final s = stocks[i];
+          final s = _stocks[i];
           final String symbol = s["symbol"] ?? "";
-          final int qty = (s["quantity"] ?? 0).toInt();
+          final int qty = (s["quantity"] ?? 0) as int;
           final double avg = (s["avg_price"] ?? 0).toDouble();
           final double ltp = (s["ltp"] ?? 0).toDouble();
           final double pnl = (s["pnl"] ?? 0).toDouble();
+          final double dayChg = (s["day_change"] ?? 0).toDouble();
           final bool isProfit = pnl >= 0;
+          final bool dayUp = dayChg >= 0;
           final pnlColor = isProfit
+              ? const Color(0xFF00C853)
+              : const Color(0xFFFF5252);
+          final dayColor = dayUp
               ? const Color(0xFF00C853)
               : const Color(0xFFFF5252);
           final pnlPct = avg != 0 ? (pnl / (avg * qty)) * 100 : 0.0;
@@ -493,6 +561,29 @@ class _PortfolioPageState extends State<PortfolioPage>
                                 fontSize: 11,
                               ),
                             ),
+                            // Day change badge
+                            if (dayChg != 0.0) ...[
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(
+                                    dayUp
+                                        ? Icons.arrow_drop_up_rounded
+                                        : Icons.arrow_drop_down_rounded,
+                                    size: 13,
+                                    color: dayColor,
+                                  ),
+                                  Text(
+                                    "Today ${dayChg.abs().toStringAsFixed(2)}%",
+                                    style: TextStyle(
+                                      color: dayColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -543,9 +634,7 @@ class _PortfolioPageState extends State<PortfolioPage>
                       onPressed: () async {
                         final bool? didSell = await Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => SellPage(share: s),
-                          ),
+                          MaterialPageRoute(builder: (_) => SellPage(share: s)),
                         );
                         if (didSell == true) _refreshPortfolio();
                       },
@@ -601,6 +690,8 @@ class _PortfolioPageState extends State<PortfolioPage>
 // ── SKELETON CARD ─────────────────────────────────────────────────────────────
 
 class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(

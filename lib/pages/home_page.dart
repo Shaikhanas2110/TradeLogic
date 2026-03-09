@@ -66,9 +66,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     },
   ];
 
+  // marketData stores: { "price": "123.45", "change": 1.23, "prev_close": 122.0 }
   Map<String, Map<String, dynamic>> marketData = {};
 
-  // ── These are now driven by Firebase streams ──────────────────────────────
   double availableBalance = 100000.0;
   double totalNetWorth = 100000.0;
   List<Map<String, dynamic>> userPortfolio = [];
@@ -97,7 +97,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
     _fadeController.forward();
 
-    _subscribeToFirebase(); // ← real-time listeners
+    _subscribeToFirebase();
     _fetchMarketData();
     fetchUsername();
   }
@@ -110,12 +110,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ── REAL-TIME FIREBASE LISTENERS ──────────────────────────────────────────
-  // These fire instantly whenever a buy or sell writes to Firebase.
-  // No manual refresh needed — the UI updates itself.
+  // ── FIREBASE STREAMS ──────────────────────────────────────────────────────
 
   void _subscribeToFirebase() {
-    // Balance stream
     _balanceSub = FirebasePortfolioService.balanceStream().listen(
       (data) {
         if (mounted) {
@@ -132,19 +129,11 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       },
     );
 
-    // Portfolio stream
-    _portfolioSub = FirebasePortfolioService.portfolioStream().listen(
-      (portfolio) {
-        if (mounted) {
-          setState(() {
-            userPortfolio = portfolio;
-          });
-        }
-      },
-      onError: (e) {
-        debugPrint("Portfolio stream error: $e");
-      },
-    );
+    _portfolioSub = FirebasePortfolioService.portfolioStream().listen((
+      portfolio,
+    ) {
+      if (mounted) setState(() => userPortfolio = portfolio);
+    }, onError: (e) => debugPrint("Portfolio stream error: $e"));
   }
 
   Future<void> fetchUsername() async {
@@ -158,29 +147,50 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  // ── FETCH MARKET DATA WITH REAL % CHANGE ──────────────────────────────────
+
   Future<void> _fetchMarketData() async {
-    setState(() => marketLoading = true);
-    for (var item in trackedSymbols) {
-      final symbol = item["symbol"] as String;
-      try {
-        final currentPrice = await ApiService.getLTP(symbol);
-        if (mounted) {
-          setState(() {
-            marketData[symbol] = {
-              "price": currentPrice.toStringAsFixed(2),
-              "change": 0.0,
-            };
-          });
+    if (mounted) setState(() => marketLoading = true);
+
+    // Fetch all symbols concurrently for speed
+    await Future.wait(
+      trackedSymbols.map((item) async {
+        final symbol = item["symbol"] as String;
+        try {
+          // getLTPWithChange returns { "ltp": x, "prev_close": y }
+          final result = await ApiService.getLTPWithChange(symbol);
+          final double ltp = result["ltp"] ?? 0.0;
+          final double prevClose = result["prev_close"] ?? 0.0;
+
+          // Calculate real % change vs previous close
+          final double changePct = prevClose > 0
+              ? ((ltp - prevClose) / prevClose) * 100
+              : 0.0;
+
+          if (mounted) {
+            setState(() {
+              marketData[symbol] = {
+                "price": ltp.toStringAsFixed(2),
+                "prev_close": prevClose,
+                "change": changePct, // ← real % change now
+              };
+            });
+          }
+        } catch (e) {
+          debugPrint("Failed to fetch $symbol: $e");
+          // Keep existing data if available, or show dash
+          if (mounted && !marketData.containsKey(symbol)) {
+            setState(() {
+              marketData[symbol] = {"price": "—", "change": 0.0};
+            });
+          }
         }
-      } catch (e) {
-        debugPrint("Failed to fetch $symbol: $e");
-      }
-    }
+      }),
+    );
+
     if (mounted) setState(() => marketLoading = false);
   }
 
-  // Pull-to-refresh only refreshes market data now.
-  // Balance/portfolio refresh automatically via streams.
   Future<void> _onRefresh() async {
     await _fetchMarketData();
   }
@@ -886,7 +896,7 @@ class MarketCard extends StatelessWidget {
                         color: changeColor,
                       ),
                       Text(
-                        "${change.abs().toStringAsFixed(1)}%",
+                        "${change.abs().toStringAsFixed(2)}%",
                         style: TextStyle(
                           color: changeColor,
                           fontSize: 10,
