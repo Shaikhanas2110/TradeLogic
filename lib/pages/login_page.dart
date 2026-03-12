@@ -255,8 +255,10 @@ class _LoginPageState extends State<LoginPage>
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            disabledBackgroundColor: Colors.indigo.withOpacity(0.5),
+                            backgroundColor: Color(0xFF00C853),
+                            disabledBackgroundColor: Color(
+                              0xFF00C853,
+                            ).withOpacity(0.5),
                             elevation: 0,
                             shadowColor: const Color(
                               0xFF00C853,
@@ -334,7 +336,7 @@ class _LoginPageState extends State<LoginPage>
                                 TextSpan(
                                   text: "Sign Up",
                                   style: TextStyle(
-                                    color: Colors.indigo,
+                                    color: Color(0xFF00C853),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                   ),

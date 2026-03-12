@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String baseUrl = "http://127.0.0.1:4000";
-  // static const String baseUrl = "http://192.168.1.17:4000";
+  // static const String baseUrl = "https://tradelogic-sever.onrender.com";
 
   static Future<List<dynamic>> getWatchlist() async {
     final res = await http.get(Uri.parse("$baseUrl/watchlist"));

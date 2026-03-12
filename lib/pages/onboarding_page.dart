@@ -126,9 +126,9 @@ class _OnboardingPageState extends State<OnboardingPage>
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
+                          backgroundColor: Color(0xFF00C853),
                           elevation: 0,
-                          shadowColor: Colors.indigo.withOpacity(0.3),
+                          shadowColor: Color(0xFF00C853).withOpacity(0.3),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

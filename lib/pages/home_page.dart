@@ -84,6 +84,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  double? _currentPrice;
+  double? _prevClose;
+
   @override
   void initState() {
     super.initState();
@@ -161,18 +164,19 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           final result = await ApiService.getLTPWithChange(symbol);
           final double ltp = result["ltp"] ?? 0.0;
           final double prevClose = result["prev_close"] ?? 0.0;
-
+          final double pct = _changePct;
+          final bool pctPos = pct >= 0;
           // Calculate real % change vs previous close
-          final double changePct = prevClose > 0
-              ? ((ltp - prevClose) / prevClose) * 100
-              : 0.0;
+          // final double changePct = prevClose > 0
+          //     ? ((ltp - prevClose) / prevClose) * 100
+          //     : 0.0;
 
           if (mounted) {
             setState(() {
               marketData[symbol] = {
                 "price": ltp.toStringAsFixed(2),
                 "prev_close": prevClose,
-                "change": changePct, // ← real % change now
+                "change": pct, // ← real % change now
               };
             });
           }
@@ -193,6 +197,13 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Future<void> _onRefresh() async {
     await _fetchMarketData();
+  }
+
+  double get _changePct {
+    if (_currentPrice == null || _prevClose == null || _prevClose == 0) {
+      return 0.0;
+    }
+    return ((_currentPrice! - _prevClose!) / _prevClose!) * 100;
   }
 
   String _getGreeting() {
@@ -518,7 +529,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 }
 
-// ── BALANCE CARD ─────────────────────────────────────────────────────────────
+// ── BALANCE CARD ──
 
 class _BalanceCard extends StatelessWidget {
   final double balance;
@@ -709,7 +720,7 @@ Widget _shimmerBox(double width, double height) {
   );
 }
 
-// ── POSITION CARD ────────────────────────────────────────────────────────────
+// ── POSITION CARD ──
 
 class CardWidget extends StatelessWidget {
   final String symbol;
@@ -818,7 +829,7 @@ class CardWidget extends StatelessWidget {
   }
 }
 
-// ── MARKET CARD ──────────────────────────────────────────────────────────────
+// ── MARKET CARD ──
 
 class MarketCard extends StatelessWidget {
   final String symbol;

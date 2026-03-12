@@ -521,7 +521,6 @@ class _StrategyPageState extends State<StrategyPage>
   }
 }
 
-// ── RISK SUMMARY CARD ─────────────────────────────────────────────────────────
 
 class _RiskSummaryCard extends StatefulWidget {
   final TextEditingController buyCtrl;

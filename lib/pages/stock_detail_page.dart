@@ -27,7 +27,7 @@ class _StockDetailPageState extends State<StockDetailPage>
   late Animation<double> _fadeAnimation;
 
   double? _currentPrice;
-  double? _prevClose; // previous day close — fetched once, stays fixed
+  double? _prevClose;
   bool _isPriceUp = true;
 
   @override
@@ -59,7 +59,6 @@ class _StockDetailPageState extends State<StockDetailPage>
         setState(() {
           _isPriceUp = _currentPrice == null || ltp >= _currentPrice!;
           _currentPrice = ltp;
-          // Only set prevClose once — it's yesterday's close, doesn't change
           _prevClose ??= prevClose > 0 ? prevClose : null;
         });
       }
@@ -84,7 +83,6 @@ class _StockDetailPageState extends State<StockDetailPage>
   Color get _priceColor =>
       _isPriceUp ? const Color(0xFF00C853) : const Color(0xFFFF5252);
 
-  // Change badge color based on actual % change direction vs prev close
   Color get _changeColor =>
       _changePct >= 0 ? const Color(0xFF00C853) : const Color(0xFFFF5252);
 
@@ -133,7 +131,6 @@ class _StockDetailPageState extends State<StockDetailPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Back + Actions row
                       Padding(
                         padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
                         child: Row(
@@ -154,7 +151,6 @@ class _StockDetailPageState extends State<StockDetailPage>
                         ),
                       ),
 
-                      // Symbol info
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
                         child: Row(
@@ -181,7 +177,6 @@ class _StockDetailPageState extends State<StockDetailPage>
                             ),
                             const SizedBox(width: 14),
 
-                            // Name + exchange
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

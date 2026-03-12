@@ -687,8 +687,6 @@ class _PortfolioPageState extends State<PortfolioPage>
   }
 }
 
-// ── SKELETON CARD ─────────────────────────────────────────────────────────────
-
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard();
 
@@ -746,3 +744,4 @@ Widget _shimmerBox(double width, double height) {
     ),
   );
 }
+ 

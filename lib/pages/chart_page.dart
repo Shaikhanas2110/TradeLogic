@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:tradelogic/models/firebase_portfolio_service.dart';
 import 'package:tradelogic/pages/strategy_page.dart';
+import 'package:tradelogic/services/api_service.dart';
 
 class ChartPage extends StatefulWidget {
   final String symbol;
@@ -33,7 +35,15 @@ class _ChartPageState extends State<ChartPage>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> pricePoints = [];
   List<SignalPoint> signalPoints = [];
-  List<String> availableStrategies = [];
+
+  List<String> availableStrategies = [
+    "RSI Overbought/Oversold",
+    "MACD Crossover",
+    "EMA Crossover",
+    "RSI Fibonacci",
+    "Multi-Indicator",
+  ];
+
   String selectedStrategy = "RSI Fibonacci";
   String currentSignal = "⚪ HOLD";
 
@@ -45,17 +55,20 @@ class _ChartPageState extends State<ChartPage>
   );
   Timer? _dataTimer;
   Timer? _strategyTimer;
-
+  double? _currentPrice;
+  double? _prevClose;
+  bool _isPriceUp = true;
   late TabController _tabController;
   final List<String> _timeframes = ["1D"];
   int _selectedTimeframe = 0;
 
-  final String flaskBaseUrl = "http://192.168.1.17:5000";
+  final String flaskBaseUrl = "http://127.0.0.1:5000";
   final String dataUrl = "http://127.0.0.1:4000";
 
   @override
   void initState() {
     super.initState();
+    _fetchPrice();
     _tabController = TabController(length: _timeframes.length, vsync: this);
     _fetchAvailableStrategies();
     _startTimers();
@@ -90,27 +103,41 @@ class _ChartPageState extends State<ChartPage>
     final int qty = int.tryParse(quantityController.text) ?? 1;
     try {
       final uri = Uri.parse("$dataUrl$endpoint");
-      final payload = {
+      await ApiService.startAlgo({
         "symbol": widget.symbol,
-        "qty": qty,
-        "price": price,
-        "sell_price": price,
-      };
-      final res = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
+        "exchange": widget.exchange,
+        "buy_price": price,
+        "sell_price": 20000,
+        "stop_loss": 1000,
+        "quantity": qty,
+      });
+
+      await FirebasePortfolioService.buyShares(
+        symbol: widget.symbol,
+        quantity: qty,
+        price: price,
       );
-      if (res.statusCode == 200) {
-        final result = jsonDecode(res.body);
-        _showTradeNotification(
-          "AUTO ${type.toUpperCase()}",
-          "Executed @ ₹$price. ${result['msg']}",
-          type,
-        );
-      } else {
-        debugPrint("Trade Failed: ${res.body}");
-      }
+
+      isRunning = false;
+    } catch (e) {
+      debugPrint("Network Error in Auto Trade: $e");
+    }
+  }
+
+  Future<void> _executeAutoSell(String type, double price) async {
+    final String endpoint = type == "sell" ? "/sell_order" : "/sell_order";
+    final int qty = int.tryParse(quantityController.text) ?? 1;
+    try {
+      final uri = Uri.parse("$dataUrl$endpoint");
+      await ApiService.startAlgo({"symbol": widget.symbol});
+
+      await FirebasePortfolioService.sellShares(
+        symbol: widget.symbol,
+        quantity: qty,
+        sellPrice: price,
+      );
+
+      isRunning = false;
     } catch (e) {
       debugPrint("Network Error in Auto Trade: $e");
     }
@@ -139,19 +166,30 @@ class _ChartPageState extends State<ChartPage>
 
   Future<void> _fetchAvailableStrategies() async {
     try {
-      final res = await http.get(Uri.parse("$flaskBaseUrl/strategies"));
+      final uri = Uri.parse("$flaskBaseUrl/strategies");
+      debugPrint("Fetching strategies from: $uri");
+
+      final res = await http.get(uri);
+      debugPrint("Strategies status: ${res.statusCode}");
+      debugPrint("Strategies body: ${res.body}");
+
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() {
-          availableStrategies = List<String>.from(data["strategies"]);
-          if (availableStrategies.isNotEmpty &&
-              !availableStrategies.contains(selectedStrategy)) {
-            selectedStrategy = availableStrategies[0];
-          }
-        });
+        final fetched = List<String>.from(data["strategies"]);
+        if (fetched.isNotEmpty) {
+          setState(() {
+            availableStrategies = fetched;
+            // Keep selectedStrategy if it exists in the new list,
+            // otherwise fall back to first item
+            if (!availableStrategies.contains(selectedStrategy)) {
+              selectedStrategy = availableStrategies[0];
+            }
+          });
+        }
       }
     } catch (e) {
-      debugPrint("Strategy Load Error: $e");
+      // Silently keep the pre-populated list — dropdown still works
+      debugPrint("Strategy Load Error (using defaults): $e");
     }
   }
 
@@ -297,6 +335,23 @@ class _ChartPageState extends State<ChartPage>
         .toList();
   }
 
+  Future<void> _fetchPrice() async {
+    try {
+      // getLTPWithChange returns { "ltp": x, "prev_close": y }
+      final result = await ApiService.getLTPWithChange(widget.symbol);
+      final double ltp = result["ltp"] ?? 0.0;
+      final double prevClose = result["prev_close"] ?? 0.0;
+
+      if (mounted) {
+        setState(() {
+          _isPriceUp = _currentPrice == null || ltp >= _currentPrice!;
+          _currentPrice = ltp;
+          _prevClose ??= prevClose > 0 ? prevClose : null;
+        });
+      }
+    } catch (_) {}
+  }
+
   // ── BUILD ─────────────────────────────────────────────────────────────────
 
   @override
@@ -315,7 +370,6 @@ class _ChartPageState extends State<ChartPage>
     final minX = spots.first.x;
     final maxX = spots.last.x;
 
-    // Chart line color based on price direction
     final firstPrice = spots.first.y;
     final lastPrice = spots.last.y;
     final isChartUp = lastPrice >= firstPrice;
@@ -475,7 +529,6 @@ class _ChartPageState extends State<ChartPage>
                             handleBuiltInTouches: true,
                             touchTooltipData: LineTouchTooltipData(
                               tooltipRoundedRadius: 10,
-                              // tooltipBgColor: const Color(0xFF1A1A2E),
                               getTooltipItems:
                                   (
                                     List<LineBarSpot> touchedBarSpots,
@@ -558,7 +611,6 @@ class _ChartPageState extends State<ChartPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Section title
                 const Text(
                   "Algo Strategy",
                   style: TextStyle(
@@ -582,7 +634,12 @@ class _ChartPageState extends State<ChartPage>
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
-                      value: selectedStrategy,
+                      // FIX 4: Guard value — must be in items list or null
+                      value: availableStrategies.contains(selectedStrategy)
+                          ? selectedStrategy
+                          : (availableStrategies.isNotEmpty
+                                ? availableStrategies[0]
+                                : null),
                       dropdownColor: Colors.white,
                       icon: const Icon(
                         Icons.keyboard_arrow_down_rounded,
@@ -594,17 +651,20 @@ class _ChartPageState extends State<ChartPage>
                         fontWeight: FontWeight.w600,
                       ),
                       isExpanded: true,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            selectedStrategy = value;
-                            signalPoints.clear();
-                            currentSignal = "⚪ HOLD";
-                            _lastExecutedSignal = "⚪ HOLD";
-                          });
-                          _fetchStrategySignal();
-                        }
-                      },
+                      // FIX 5: Pass null to disable dropdown only if truly empty
+                      onChanged: availableStrategies.isEmpty
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  selectedStrategy = value;
+                                  signalPoints.clear();
+                                  currentSignal = "⚪ HOLD";
+                                  _lastExecutedSignal = "⚪ HOLD";
+                                });
+                                _fetchStrategySignal();
+                              }
+                            },
                       items: availableStrategies
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
@@ -728,6 +788,7 @@ class _ChartPageState extends State<ChartPage>
                             ? const Color(0xFFFF5252)
                             : const Color(0xFF00C853),
                         onTap: () {
+                          _executeAutoTrade(widget.exchange, _currentPrice!);
                           setState(() {
                             isRunning = !isRunning;
                             _lastExecutedSignal = "⚪ HOLD";
