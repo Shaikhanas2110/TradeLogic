@@ -63,7 +63,9 @@ class _ChartPageState extends State<ChartPage>
   int _selectedTimeframe = 0;
 
   final String flaskBaseUrl = "http://127.0.0.1:5000";
-  final String dataUrl = "http://127.0.0.1:4000";
+  // final String flaskBaseUrl = "http://172.20.10.2:5000";
+  // final String dataUrl = "http://127.0.0.1:4000";
+  final String dataUrl = "http://172.20.10.2:4000";
 
   @override
   void initState() {
@@ -96,7 +98,6 @@ class _ChartPageState extends State<ChartPage>
     super.dispose();
   }
 
-  // ── AUTOMATION ────────────────────────────────────────────────────────────
 
   Future<void> _executeAutoTrade(String type, double price) async {
     final String endpoint = type == "buy" ? "/buy_order" : "/sell_order";
@@ -351,8 +352,6 @@ class _ChartPageState extends State<ChartPage>
       }
     } catch (_) {}
   }
-
-  // ── BUILD ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {

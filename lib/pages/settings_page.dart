@@ -16,6 +16,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage>
     with SingleTickerProviderStateMixin {
   final String backendUrl = "http://127.0.0.1:4000";
+  // final String backendUrl = "http://172.20.10.2:4000";
   // final String backendUrl = "https://tradelogic-sever.onrender.com";
   final _auth = FirebaseAuth.instance;
 
@@ -915,7 +916,7 @@ class _SettingsPageState extends State<SettingsPage>
                           icon: Icons.flash_on_rounded,
                           iconColor: const Color(0xFFFFAB00),
                           label: "Trading Engine",
-                          value: "http://192.168.1.17:5000",
+                          value: "http://172.20.10.2:5000",
                         ),
                       ],
                     ),

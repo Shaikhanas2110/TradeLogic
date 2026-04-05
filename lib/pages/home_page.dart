@@ -16,14 +16,14 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final List<Map<String, dynamic>> trackedSymbols = [
     {
-      "symbol": "NIFTY",
+      "symbol": "Nifty 50",
       "name": "NIFTY 50",
       "type": "index",
       "exchange": "NSE_EQ",
       "instrument_key": "NSE_INDEX|Nifty 50",
     },
     {
-      "symbol": "BANKNIFTY",
+      "symbol": "Nifty Bank",
       "name": "BANK NIFTY",
       "type": "index",
       "exchange": "NSE_EQ",
@@ -530,7 +530,6 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 }
 
 // ── BALANCE CARD ──
-
 class _BalanceCard extends StatelessWidget {
   final double balance;
   final double netWorth;
@@ -721,7 +720,6 @@ Widget _shimmerBox(double width, double height) {
 }
 
 // ── POSITION CARD ──
-
 class CardWidget extends StatelessWidget {
   final String symbol;
   final int qty;
@@ -830,7 +828,6 @@ class CardWidget extends StatelessWidget {
 }
 
 // ── MARKET CARD ──
-
 class MarketCard extends StatelessWidget {
   final String symbol;
   final String price;
